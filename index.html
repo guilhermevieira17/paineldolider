@@ -3,16 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Report Operação — Curitiba (tempo real)</title>
+<title>SPX Hub Operations v9 — Multi-Hub</title>
 <style>
   :root{
-    --spx:#EE4D2D; --spx-d:#C43C1F; --ink:#15161A; --paper:#F6F5F2; --card:#fff;
-    --line:#E5E3DD; --muted:#6C6963; --ok:#1E8449; --wait:#B7791F; --miss:#C0392B;
+    --spx:#EE4D2D;--spx-d:#C43C1F;--ink:#15161A;--paper:#F6F5F2;--card:#fff;
+    --line:#E5E3DD;--muted:#6C6963;--ok:#1E8449;--wait:#B7791F;--miss:#C0392B;
+    --gn:#16a34a;--gn2:#dcfce7;--gnb:#bbf7d0;
+    --rd:#dc2626;--rd2:#fee2e2;--rdb:#fecaca;
     --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&family=JetBrains+Mono:wght@400;500;700&family=Share+Tech+Mono&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Archivo',system-ui,sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .tabs{display:flex;background:var(--ink);gap:0;position:sticky;top:0;z-index:100}
+  .tab{padding:11px 24px;font-size:13px;font-weight:800;cursor:pointer;color:rgba(255,255,255,.5);border-bottom:3px solid transparent;letter-spacing:.5px;transition:all .15s}
+  .tab:hover{color:rgba(255,255,255,.8)}
+  .tab.active{color:#fff;border-bottom-color:var(--spx)}
+  .page{display:none}.page.active{display:block}
+  /* ══ ABA REPORT ══ */
   .wrap{max-width:760px;margin:0 auto;padding:20px 16px 60px}
   header{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:3px solid var(--ink);padding-bottom:12px;margin-bottom:18px;flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:10px}
@@ -23,32 +31,29 @@
   .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
   .dot.stale{background:var(--miss);animation:none}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
   .report{background:var(--ink);color:#EDEBE6;border-radius:15px;padding:22px;font-family:var(--mono);font-size:14px;line-height:1.85;white-space:pre-wrap;overflow-x:auto}
   .report .k{color:#9BE7B4}
   .bar{display:flex;gap:9px;margin-top:12px;flex-wrap:wrap}
   .btn{background:var(--ink);color:#fff;border:none;border-radius:9px;padding:10px 15px;font-family:'Archivo';font-weight:800;font-size:13px;cursor:pointer}
-  .btn.spx{background:var(--spx)} .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
-
+  .btn.spx{background:var(--spx)}.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:18px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
   .stat .lab{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
   .stat .val{font-family:var(--mono);font-size:25px;font-weight:700;margin-top:2px}
-  .stat.ok .val{color:var(--ok)} .stat.wait .val{color:var(--wait)} .stat.spx .val{color:var(--spx)}
+  .stat.ok .val{color:var(--ok)}.stat.wait .val{color:var(--wait)}.stat.spx .val{color:var(--spx)}
   table{width:100%;border-collapse:collapse;margin-top:16px;background:var(--card);border-radius:12px;overflow:hidden;font-size:13px}
   th{background:var(--ink);color:#fff;text-align:left;padding:8px 11px;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
   th.n,td.n{text-align:right;font-family:var(--mono)}
   td{padding:7px 11px;border-bottom:1px solid var(--line)}
   tr:last-child td{border-bottom:none}
   .tot td{font-weight:800;background:var(--paper)}
-
   .cfg{margin-top:22px;background:#FFF6F3;border:1px solid #F5C7B8;border-radius:12px;padding:14px 16px;display:none}
   .cfg.show{display:block}
   .cfg h3{font-size:12px;font-weight:800;color:var(--spx-d);text-transform:uppercase;margin-bottom:8px}
   .cfg textarea{width:100%;min-height:70px;font-family:var(--mono);font-size:12px;border:1.5px solid #EBB6A2;border-radius:8px;padding:9px;resize:vertical}
   .cfg .row{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}
   .msg{font-size:12px;font-weight:700}
-  .msg.ok{color:var(--ok)} .msg.err{color:var(--miss)}
+  .msg.ok{color:var(--ok)}.msg.err{color:var(--miss)}
   .warn{background:#FEF9E7;border:1px solid #F5DFA0;color:#7A5B10;border-radius:11px;padding:11px 14px;font-size:12.5px;margin-top:14px;display:none}
   .warn.show{display:block}
   .foot{font-size:11px;color:var(--muted);margin-top:20px;text-align:center;line-height:1.6}
@@ -56,26 +61,113 @@
   .toast.show{transform:translateX(-50%) translateY(0)}
   .setup{background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:16px;margin-bottom:18px}
   .setup input{width:100%;font-family:var(--mono);font-size:12px;border:1.5px solid var(--line);border-radius:8px;padding:9px;margin-top:8px}
+  /* ══ ABA GUICHÊ ══ */
+  .gwrap{height:calc(100vh - 43px);display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
+  .ghdr{background:#fff;border-bottom:3px solid var(--spx);padding:0 18px;display:flex;align-items:center;justify-content:space-between;height:58px;flex-shrink:0;box-shadow:0 2px 8px #00000010}
+  .glogo{background:var(--spx);color:#fff;font-size:15px;font-weight:900;padding:4px 10px;border-radius:4px}
+  .ghtx{margin-left:10px}.ghtx h2{font-size:16px;font-weight:900;letter-spacing:1px}
+  .ghtx p{font-size:10px;color:var(--muted)}
+  .gpills{display:flex;gap:6px}
+  .gp{background:#f8fafc;border:2px solid #e2e8f0;border-radius:5px;padding:3px 10px;text-align:center;min-width:62px}
+  .gp .n{font-size:19px;font-weight:700;font-family:'Share Tech Mono',monospace;line-height:1}
+  .gp .l{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+  .gp.gn{border-color:var(--gnb)}.gp.gn .n{color:var(--gn)}
+  .gp.rd{border-color:var(--rdb)}.gp.rd .n{color:var(--rd)}
+  .gp.yw{border-color:#fde68a}.gp.yw .n{color:var(--wait)}
+  .gp.bl{border-color:#bfdbfe}.gp.bl .n{color:#2563eb}
+  .gclk{min-width:82px}
+  .gclk .n{color:var(--spx);font-size:17px;letter-spacing:.5px}
+  .gcst{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700}
+  .gpulse{width:7px;height:7px;border-radius:50%;animation:pulse 1.5s infinite;flex-shrink:0}
+  .gsb{background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:3px 18px;display:flex;align-items:center;gap:12px;height:26px;flex-shrink:0;font-size:11px}
+  .gleg{display:flex;align-items:center;gap:4px;color:var(--muted);font-weight:600}
+  .gdot{width:7px;height:7px;border-radius:50%}
+  .gsep{width:1px;height:12px;background:#cbd5e1}
+  .gprev{background:#fef9c3;border:1px solid #fde047;border-radius:4px;padding:2px 8px;display:flex;align-items:center;gap:5px}
+  .gprev-l{font-size:10px;color:#854d0e;font-weight:700}
+  .gprev-v{font-family:'Share Tech Mono',monospace;font-size:13px;font-weight:900;color:#854d0e}
+  .gprev-d{font-size:9px;color:#a16207}
+  .glay{display:flex;flex:1;overflow:hidden}
+  .gmain{flex:1;padding:8px 12px;overflow-y:auto}
+  .gside{width:340px;background:#fff;border-left:2px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
+  .gg{display:grid;gap:7px}
+  .g{background:#fff;border:2px solid #e2e8f0;border-radius:9px;overflow:hidden;display:flex;flex-direction:column;min-height:128px;transition:all .2s}
+  .g::before{content:'';display:block;height:5px}
+  .g.livre::before{background:#94a3b8}
+  .g.carregando{border-color:var(--gnb);background:linear-gradient(135deg,#f0fdf4,#fff)}.g.carregando::before{background:var(--gn)}
+  .g.alerta{border-color:var(--gn);animation:aGN .7s infinite}.g.alerta::before{background:var(--gn)}
+  .g.alerta .ggaio{color:#fff;background:var(--gn)}
+  @keyframes aGN{0%,100%{box-shadow:0 2px 12px #16a34a20}50%{box-shadow:0 0 20px 5px #16a34a55}}
+  .g.aguardando{border-color:var(--rdb);background:linear-gradient(135deg,#fff5f5,#fff)}.g.aguardando::before{background:var(--rd)}
+  .g.ociosa{border-color:var(--rd);animation:aRD .7s infinite}.g.ociosa::before{background:var(--rd)}
+  .g.ociosa .ggaio{color:#fff;background:var(--rd)}
+  @keyframes aRD{0%,100%{box-shadow:0 2px 12px #dc262618}50%{box-shadow:0 0 20px 5px #dc262655}}
+  .gb{padding:6px 9px;display:flex;flex-direction:column;flex:1}
+  .gnum{font-size:9px;color:var(--muted);font-weight:700;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center}
+  .gtag{font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;text-transform:uppercase}
+  .t-livre{background:#f1f5f9;color:#94a3b8}
+  .t-carregando,.t-alerta{background:var(--gn2);color:var(--gn)}
+  .t-aguardando,.t-ociosa{background:var(--rd2);color:var(--rd)}
+  .gmesa{font-size:15px;font-weight:900;letter-spacing:1px;font-family:'Share Tech Mono',monospace;text-align:center;color:var(--muted);margin:2px 0 1px}
+  .ggaio{font-size:22px;font-weight:900;letter-spacing:2px;font-family:'Share Tech Mono',monospace;text-align:center;padding:4px 5px;border-radius:6px;margin:2px 0}
+  .g.carregando .ggaio,.g.alerta .ggaio{color:var(--gn);background:var(--gn2)}
+  .g.aguardando .ggaio,.g.ociosa .ggaio{color:var(--rd);background:var(--rd2)}
+  .g.livre .ggaio{color:#94a3b8;background:#f1f5f9;font-size:13px}
+  .ginfo{display:flex;flex-direction:column;gap:1px;margin-top:2px;text-align:center}
+  .gplaca{font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--ink)}
+  .gmot{font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fh{padding:7px 12px;border-bottom:2px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;flex-shrink:0}
+  .fhc{font-size:11px;color:var(--spx);font-family:'Share Tech Mono',monospace;font-weight:700}
+  .fch{display:grid;grid-template-columns:22px 62px 1fr 48px;gap:4px;padding:4px 12px;font-size:9px;color:var(--muted);letter-spacing:1px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0;font-weight:700}
+  .fb{flex:1;overflow-y:auto}
+  .fr{display:grid;grid-template-columns:22px 62px 1fr 48px;gap:4px;padding:5px 12px;border-bottom:1px solid #f1f5f9;align-items:center;font-size:11px}
+  .fr.prio{background:#fffbeb}
+  .fp{font-weight:700;color:var(--spx);font-family:'Share Tech Mono',monospace}
+  .fpl{font-family:'Share Tech Mono',monospace;font-weight:700;font-size:11px}
+  .fn{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}
+  .fc{font-weight:900;font-family:'Share Tech Mono',monospace;text-align:center;padding:2px 4px;border-radius:3px;color:#1d4ed8;background:#dbeafe;font-size:10px}
+  .ef{text-align:center;padding:24px;color:var(--muted);font-size:12px}
+  .kbar{background:#fff;border-top:2px solid #e2e8f0;display:flex;height:44px;flex-shrink:0}
+  .ki{display:flex;flex-direction:column;justify-content:center;padding:0 14px;border-right:1px solid #e2e8f0;min-width:90px;cursor:default}
+  .ki:hover{background:#f8fafc}
+  .kil{font-size:8px;color:var(--muted);letter-spacing:1px;font-weight:700;text-transform:uppercase}
+  .kiv{font-family:'Share Tech Mono',monospace;font-size:17px;font-weight:900;line-height:1.1}
+  .kis{font-size:8px;color:#94a3b8}
+  .kgn{color:var(--gn)}.krd{color:var(--rd)}.kyw{color:var(--wait)}.kor{color:var(--spx)}.ktx{color:var(--ink)}
+  .mh{position:fixed;inset:0;background:#00000070;z-index:500;display:none;align-items:center;justify-content:center}
+  .mh.open{display:flex}
+  .mhb{background:#fff;border-radius:10px;width:660px;max-height:78vh;display:flex;flex-direction:column;box-shadow:0 20px 60px #00000030}
+  .mhb h3{padding:13px 18px;border-bottom:1px solid #e2e8f0;font-size:14px;font-weight:700;display:flex;justify-content:space-between}
+  .mhb h3 button{background:none;border:none;font-size:17px;cursor:pointer;color:var(--muted)}
+  .mht{overflow-y:auto;flex:1}
+  .mht table{width:100%;border-collapse:collapse;font-size:11px}
+  .mht th{background:#f8fafc;padding:6px 12px;text-align:left;font-size:9px;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:1px solid #e2e8f0;position:sticky;top:0}
+  .mht td{padding:6px 12px;border-bottom:1px solid #f1f5f9;font-family:'Share Tech Mono',monospace}
+  .bdg{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700}
+  .bg{background:var(--gn2);color:var(--gn)}.br{background:var(--rd2);color:var(--rd)}.by{background:#fef9c3;color:var(--wait)}
 </style>
 </head>
 <body>
+<div class="tabs">
+  <div class="tab active" id="tab-report" onclick="abrirTab('report')">📊 Report Operacional</div>
+  <div class="tab" id="tab-guiche" onclick="abrirTab('guiche')">🏭 Guichê de Carregamento</div>
+</div>
+<!-- ══ ABA REPORT ══ -->
+<div class="page active" id="page-report">
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo">S</div>
-      <h1>Report Operação<small>LM Hub_PR_Curitiba · tempo real</small></h1>
+      <h1>Report Operação<small id="hubName">LM Hub · tempo real</small></h1>
     </div>
     <div class="live"><span class="dot" id="dot"></span><span id="liveTxt">conectando…</span></div>
   </header>
-
   <div class="setup" id="setup">
     <b style="font-size:13px">Configuração inicial</b>
     <p style="font-size:12px;color:var(--muted);margin-top:4px">Cole a URL do Web App do Apps Script (termina em <code>/exec</code>). Fica salva neste aparelho.</p>
     <input id="apiUrl" placeholder="https://script.google.com/macros/s/.../exec">
     <div style="margin-top:8px"><button class="btn spx" id="saveUrl">Salvar e conectar</button></div>
   </div>
-
   <div class="warn" id="warn"></div>
-
   <div class="report" id="report">Carregando…</div>
   <div class="bar">
     <button class="btn spx" id="copy">📋 Copiar</button>
@@ -84,33 +176,108 @@
     <button class="btn ghost" id="toggleCfg">🔑 Cookie</button>
     <button class="btn ghost" id="toggleUrl">⚙️ URL</button>
   </div>
-
   <div class="cfg" id="cfg">
     <h3>Atualizar cookie do SPX</h3>
-    <p style="font-size:12px;color:var(--muted)">Quando o report parar de atualizar, cole aqui os cookies do SPX (F12 → Application → Cookies, ou a extensão de copiar cookie).</p>
+    <p style="font-size:12px;color:var(--muted)">Quando o report parar de atualizar, cole aqui os cookies do SPX.</p>
     <textarea id="cookieIn" placeholder="csrftoken=...; fms_user_skey=...; SPC_T_ID=...; ..."></textarea>
     <div class="row">
       <button class="btn spx" id="sendCookie">Enviar cookie</button>
       <span class="msg" id="cookieMsg"></span>
     </div>
   </div>
-
   <div class="grid" id="stats"></div>
   <div id="blocks"></div>
   <div class="foot" id="foot"></div>
 </div>
+</div>
+<!-- ══ ABA GUICHÊ ══ -->
+<div class="page" id="page-guiche">
+<div class="gwrap">
+  <div class="ghdr">
+    <div style="display:flex;align-items:center">
+      <div class="glogo">SPX</div>
+      <div class="ghtx"><h2>GUICHÊ DE CARREGAMENTO</h2><p id="ghub">aguardando...</p></div>
+      <select id="hubSel" onchange="trocarHub(this.value)" style="margin-left:14px;font-family:'Archivo';font-weight:800;font-size:13px;padding:6px 10px;border:2px solid var(--spx);border-radius:8px;color:var(--spx);background:#fff;cursor:pointer">
+        <option value="">— hub —</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px">
+      <div class="gpills" id="gpills">
+        <div class="gp gn"><div class="n" id="g-car">0</div><div class="l">Carregando</div></div>
+        <div class="gp rd"><div class="n" id="g-ag">0</div><div class="l">Na Fila</div></div>
+        <div class="gp bl"><div class="n" id="g-pend">0</div><div class="l">Pendentes</div></div>
+        <div class="gp yw"><div class="n" id="g-flt">0</div><div class="l">Ociosas</div></div>
+        <div class="gp"><div class="n" id="g-liv">0</div><div class="l">Livres</div></div>
+        <div class="gp gclk"><div class="n" id="gclk" style="font-family:'Share Tech Mono',monospace;color:var(--spx)">--:--</div><div class="l" id="gdt">--/--</div></div>
+      </div>
+      <div class="gcst">
+        <span class="gpulse" id="gcdot" style="background:#94a3b8"></span>
+        <span id="gctxt" style="color:var(--muted);font-size:10px;font-weight:700">DESCONECTADO</span>
+      </div>
+    </div>
+  </div>
+  <div class="gsb">
+    <div class="gleg"><span class="gdot" style="background:var(--gn)"></span>Carregando</div>
+    <div class="gsep"></div>
+    <div class="gleg"><span class="gdot" style="background:var(--gn)"></span>+SLA piscando</div>
+    <div class="gsep"></div>
+    <div class="gleg"><span class="gdot" style="background:var(--rd)"></span>Ociosa piscando</div>
+    <div class="gsep"></div>
+    <div class="gprev">
+      <span class="gprev-l">⏱ PREVISÃO FIM:</span>
+      <span class="gprev-v" id="gprev">--:--</span>
+      <span class="gprev-d" id="gprev-d">aguardando</span>
+    </div>
+  </div>
+  <div class="glay">
+    <div class="gmain"><div class="gg" id="ggrid"></div></div>
+    <div class="gside">
+      <div class="fh"><div style="font-size:11px;font-weight:700;letter-spacing:1px">FILA DE CHAMADA</div><div class="fhc" id="gfcnt">0 na fila</div></div>
+      <div class="fch"><div>Pos</div><div>Placa</div><div>Motorista</div><div>Gaiola</div></div>
+      <div class="fb" id="gfbody"><div class="ef">Aguardando dados...</div></div>
+    </div>
+  </div>
+  <div class="kbar">
+    <div class="ki" onclick="abrirHist()" style="cursor:pointer" title="Ver histórico">
+      <div class="kil">Giro médio</div><div class="kiv ktx" id="k-giro">--</div><div class="kis">min ↗ hist.</div>
+    </div>
+    <div class="ki"><div class="kil">T.médio atual</div><div class="kiv kgn" id="k-tmed">--</div><div class="kis">em carga</div></div>
+    <div class="ki"><div class="kil">Finalizados</div><div class="kiv ktx" id="k-fin">0</div><div class="kis" id="k-fins">0 ciclos</div></div>
+    <div class="ki"><div class="kil">Mesas ativas</div><div class="kiv ktx" id="k-cap">0</div><div class="kis">abertas</div></div>
+    <div class="ki"><div class="kil">Ociosas</div><div class="kiv" id="k-ocio" style="color:var(--rd)">0</div><div class="kis">>SLA sem mot.</div></div>
+    <div class="ki" style="border-right:none;margin-left:auto">
+      <div class="kil">SLA · Início</div><div class="kiv ktx" id="k-sla">7</div><div class="kis" id="k-ini">--:--</div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="mh" id="mh" onclick="if(event.target===this)fecharHist()">
+  <div class="mhb">
+    <h3>📊 Histórico por Mesa <button onclick="fecharHist()">×</button></h3>
+    <div class="mht"><table><thead><tr><th>Mesa</th><th>Placa</th><th>Gaiola</th><th>Início</th><th>Fim</th><th>Duração</th><th>vs SLA</th></tr></thead><tbody id="htbody"></tbody></table></div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
-
 <script>
+// ── SHARED ────────────────────────────────────────────────────
 const $=id=>document.getElementById(id);
 const LS_URL='spx_report_api_url';
+const LS_STATION='spx_station_id';
+const SLA_CAR=7, SLA_OCIO=3;
 let API=localStorage.getItem(LS_URL)||'';
+let STATION=localStorage.getItem(LS_STATION)||'';
 let timer=null, lastData=null;
-
+function apiUrl(params){return API+'?'+params+(STATION?'&station='+STATION:'')+'&t='+Date.now();}
 function toast(m){$('toast').textContent=m;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),1600);}
-
+function abrirTab(t){
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  $('tab-'+t).classList.add('active');
+  $('page-'+t).classList.add('active');
+}
+// ── REPORT ────────────────────────────────────────────────────
 function init(){
-  if(API && /\/exec$/.test(API)){$('setup').style.display='none';$('apiUrl').value=API;start();}
+  if(API&&/\/exec$/.test(API)){$('setup').style.display='none';$('apiUrl').value=API;start();}
   else{API='';localStorage.removeItem(LS_URL);$('setup').style.display='block';$('report').textContent='Configure a URL do Web App para começar.';}
 }
 $('saveUrl').onclick=()=>{
@@ -120,93 +287,367 @@ $('saveUrl').onclick=()=>{
 };
 $('toggleCfg').onclick=()=>$('cfg').classList.toggle('show');
 $('toggleUrl').onclick=()=>{const s=$('setup');s.style.display=s.style.display==='none'?'block':'none';};
-
-function start(){ fetchReport(); if(timer)clearInterval(timer); timer=setInterval(fetchReport,60000); }
+// ── SELETOR DE HUB ────────────────────────────────────────────
+function carregarHubs(){
+  if(!API)return;
+  var cbName='_spxhubs_'+Date.now();
+  window[cbName]=function(d){
+    delete window[cbName];
+    if(!d||!d.hubs)return;
+    var sel=$('hubSel');
+    sel.innerHTML='<option value="">— escolha o hub —</option>';
+    d.hubs.forEach(function(h){
+      var o=document.createElement('option');
+      o.value=h.id;o.textContent=h.nome;
+      if(String(h.id)===String(STATION))o.selected=true;
+      sel.appendChild(o);
+    });
+    // se nenhum hub escolhido ainda, usa o default
+    if(!STATION&&d['default']){STATION=String(d['default']);localStorage.setItem(LS_STATION,STATION);sel.value=STATION;}
+  };
+  var s=document.createElement('script');
+  s.src=API+'?action=hubs&callback='+cbName+'&t='+Date.now();
+  s.onerror=function(){delete window[cbName];};
+  document.head.appendChild(s);
+}
+function trocarHub(id){
+  if(!id)return;
+  STATION=String(id);
+  localStorage.setItem(LS_STATION,STATION);
+  // limpa estado do guichê e recarrega
+  filaG=[];_alocadoDesde={};_inicios={};_hist={};_fin=0;_ciclos=0;
+  g50.forEach(g=>{g.s='livre';g.mesa='';g.ga='';g.pl='';g.mot='';g.tOcio=0;g.tOcioBase=null;g.esperaBase=null;});
+  $('ghub').textContent=$('hubSel').options[$('hubSel').selectedIndex].text+' · carregando...';
+  toast('Hub: '+$('hubSel').options[$('hubSel').selectedIndex].text);
+  fetchReport();fetchGuiche();
+}
+function start(){
+  carregarHubs();
+  fetchReport();
+  if(timer)clearInterval(timer);
+  timer=setInterval(fetchReport,30000);
+  // Guichê: endpoint leve, 3s
+  fetchGuiche();
+  if(gtimer)clearInterval(gtimer);
+  gtimer=setInterval(fetchGuiche,3000);
+}
+var gtimer=null;
+function fetchGuiche(){
+  if(!API)return;
+  var cbName='_spxg_'+Date.now();
+  window[cbName]=function(d){
+    delete window[cbName];
+    if(d&&d.ok){renderGuiche(d);}
+    else{setGStatus('SEM DADOS','#dc2626');}
+  };
+  var s=document.createElement('script');
+  s.src=apiUrl('action=guiche&callback='+cbName);
+  s.onerror=function(){delete window[cbName];setGStatus('SEM CONEXÃO','#dc2626');};
+  document.head.appendChild(s);
+  setTimeout(function(){try{document.head.removeChild(s);}catch(e){}},10000);
+}
 $('refresh').onclick=fetchReport;
-
 function fetchReport(){
   if(!API)return;
   var cbName='_spxcb_'+Date.now();
   window[cbName]=function(d){
     delete window[cbName];
-    if(!d||!d.ok){ handleErr(d?d.erro||'erro':'erro'); return; }
-    lastData=d; render(d); setLive(true,d.atualizado_em);
+    if(!d||!d.ok){handleErr(d?d.erro||'erro':'erro');return;}
+    lastData=d;render(d);setLive(true,d.atualizado_em);
   };
   var s=document.createElement('script');
-  s.src=API+'?action=report&callback='+cbName+'&t='+Date.now();
-  s.onerror=function(){ delete window[cbName]; handleErr('sem_conexao'); };
+  s.src=apiUrl('callback='+cbName);
+  s.onerror=function(){delete window[cbName];handleErr('sem_conexao');};
   document.head.appendChild(s);
-  setTimeout(function(){ try{document.head.removeChild(s);}catch(e){} },15000);
+  setTimeout(function(){try{document.head.removeChild(s);}catch(e){}},15000);
 }
-
 function handleErr(code){
   setLive(false);
-  const w=$('warn'); w.classList.add('show');
-  if(code==='cookie_ausente_ou_incompleto'){ w.innerHTML='⚠️ <b>Cookie expirado ou ausente.</b> Toque em 🔑 Cookie e cole um cookie novo do SPX.'; $('cfg').classList.add('show'); }
-  else if(code==='sem_conexao'){ w.innerHTML='⚠️ Sem conexão com o servidor. Verifique a URL do Web App.'; }
-  else{ w.innerHTML='⚠️ Erro: '+code; }
+  const w=$('warn');w.classList.add('show');
+  if(code==='cookie_ausente_ou_incompleto'){w.innerHTML='⚠️ <b>Cookie expirado ou ausente.</b> Toque em 🔑 Cookie e cole um cookie novo do SPX.';$('cfg').classList.add('show');}
+  else if(code==='sem_conexao'){w.innerHTML='⚠️ Sem conexão com o servidor. Verifique a URL do Web App.';}
+  else{w.innerHTML='⚠️ Erro: '+code;}
+  setGStatus('ERRO','#dc2626');
 }
-
 function setLive(ok,ts){
   $('dot').classList.toggle('stale',!ok);
-  $('liveTxt').textContent = ok ? ('atualizado '+(ts||'')) : 'desatualizado';
+  $('liveTxt').textContent=ok?('atualizado '+(ts||'')):'desatualizado';
   if(ok)$('warn').classList.remove('show');
 }
-
 function render(d){
   var blocos=d.blocos||[];
-  var seg=function(sel){ return blocos.map(function(b){return sel(b)+' ('+b.label+')';}).join(' + '); };
+  var ativos=blocos.filter(b=>!b.cancelado);
+  var cancelados=blocos.filter(b=>b.cancelado);
+  var snap=d.snapshot||{};var snapHora=snap.hora||'—';
+  var disp=d.disponibilidade||{};
+  var partes_total=[],partes_exp=[],partes_pend=[],partes_ns=[];
+  ativos.forEach(function(b){
+    var diasTxt=b.dias?' ('+b.dias+')':'';
+    partes_total.push(b.total+' ('+b.label+diasTxt+')');
+    partes_exp.push(b.exp+' ('+b.label+')');
+    partes_pend.push(b.pend+' ('+b.label+diasTxt+')');
+    partes_ns.push(b.ns+' ('+b.label+')');
+  });
+  cancelados.forEach(b=>partes_total.push('SEM EXPEDIÇÃO ('+b.label+')'));
+  var bancTxt=d.bancadas!=null&&typeof d.bancadas==='object'?d.bancadas.ocupadas+' ocupadas / '+d.bancadas.disponiveis+' disponíveis':(d.bancadas!=null?d.bancadas:'—');
+  // Janela real de expedição (primeiro/último pacote bipado por turno)
+  var aud=d.auditoria||{};
+  var linhaInicio='';
+  function janelaTxt(t,lbl){
+    if(t&&t.primeiro)return lbl+': '+t.primeiro+(t.ultimo?'→'+t.ultimo:'');
+    return '';
+  }
+  var jAM=janelaTxt(aud.am,'AM'),jPM=janelaTxt(aud.pm,'PM');
+  var janelas=[jAM,jPM].filter(function(x){return x;}).join(' | ');
+  linhaInicio=janelas?('Expedição — '+janelas):'Início da expedição: 05:00';
   var txt=
-'Status das: '+d.hora+'h\nInício da expedição: 05:00\n \n'+
-'📦 Total de Rotas: '+seg(function(b){return b.total;})+' = '+d.total.total+'\n'+
-'📦 Rotas expedidas: '+seg(function(b){return b.exp;})+' = '+d.total.exp+'\n'+
-'⏳ Rotas pendentes: '+d.total.pend+'\n'+
-'🖥️ Bancadas abertas: '+(d.bancadas!=null?d.bancadas:'—')+'\n'+
-'📍 NS: '+seg(function(b){return b.ns;})+' = '+d.total.ns+'\n'+
-'🚘 Fila Driver interna: '+(d.fila!=null?d.fila:'—');
-  $('report').innerHTML=txt.replace(/📦|⏳|🖥️|📍|🚘/g,function(m){return '<span class="k">'+m+'</span>';});
+'Status das: '+d.hora+'h\n'+
+linhaInicio+' | Snapshot: '+snapHora+'\n \n'+
+'📦 Total de Rotas: '+partes_total.join(' + ')+' = '+d.total.total+'\n'+
+'📦 Rotas expedidas: '+partes_exp.join(' + ')+' = '+d.total.exp+'\n'+
+'⏳ Rotas pendentes: '+partes_pend.join(' + ')+' = '+d.total.pend+'\n'+
+'🖥️ Bancadas abertas: '+bancTxt+'\n'+
+'📍 NS: '+partes_ns.join(' + ')+' = '+d.total.ns+'\n'+
+'🚘 Fila Driver interna: '+(d.fila!=null?d.fila:'—')+'\n'+
+'🚗 Veículos disponíveis: '+(disp.hoje!=null?disp.hoje+' hoje / '+disp.amanha+' amanhã':'—');
+  $('report').innerHTML=txt.replace(/📦|⏳|🖥️|📍|🚘|🚗/g,m=>'<span class="k">'+m+'</span>');
   $('report').dataset.raw=txt;
-
   var pct=d.total.total?Math.round(d.total.exp/d.total.total*100):0;
+  var snap2=d.snapshot||{};var si=snap2.ns_inicio||{};
+  var snapNsTotal=0;Object.keys(si).forEach(k=>snapNsTotal+=si[k]);
+  var snapAmPlan=(snap2.hoje_inicio&&snap2.hoje_inicio.AM)?snap2.hoje_inicio.AM.plan:0;
+  var snapPmPlan=(snap2.hoje_inicio&&snap2.hoje_inicio.PM)?snap2.hoje_inicio.PM.plan:0;
+  var snapTotal=snapNsTotal+snapAmPlan+snapPmPlan;
   $('stats').innerHTML=
     '<div class="stat"><div class="lab">Total</div><div class="val">'+d.total.total+'</div></div>'+
     '<div class="stat ok"><div class="lab">Expedidas</div><div class="val">'+d.total.exp+'</div><div class="lab">'+pct+'%</div></div>'+
     '<div class="stat wait"><div class="lab">Pendentes</div><div class="val">'+d.total.pend+'</div></div>'+
     '<div class="stat spx"><div class="lab">NS</div><div class="val">'+d.total.ns+'</div></div>'+
-    '<div class="stat"><div class="lab">Bancadas</div><div class="val">'+(d.bancadas!=null?d.bancadas:'—')+'</div></div>'+
-    '<div class="stat"><div class="lab">Fila</div><div class="val">'+(d.fila!=null?d.fila:'—')+'</div></div>';
-
-  var t='<table><thead><tr><th>Bloco</th><th class="n">Total</th><th class="n">Exp.</th><th class="n">NS</th></tr></thead><tbody>';
-  blocos.forEach(function(b){t+='<tr><td><b>'+b.label+'</b></td><td class="n">'+b.total+'</td><td class="n">'+b.exp+'</td><td class="n">'+b.ns+'</td></tr>';});
-  t+='<tr class="tot"><td>TOTAL</td><td class="n">'+d.total.total+'</td><td class="n">'+d.total.exp+'</td><td class="n">'+d.total.ns+'</td></tr></tbody></table>';
+    '<div class="stat"><div class="lab">Bancadas</div><div class="val">'+(d.bancadas!=null&&typeof d.bancadas==='object'?d.bancadas.ocupadas:'—')+'</div>'+(d.bancadas!=null&&typeof d.bancadas==='object'?'<div class="lab">'+d.bancadas.disponiveis+' disp.</div>':'')+'</div>'+
+    '<div class="stat"><div class="lab">Fila</div><div class="val">'+(d.fila!=null?d.fila:'—')+'</div></div>'+
+    '<div class="stat"><div class="lab">Veículos hoje</div><div class="val">'+(disp.hoje!=null?disp.hoje:'—')+'</div>'+(disp.amanha!=null?'<div class="lab">amanhã: '+disp.amanha+'</div>':'')+'</div>';
+  var t='<table><thead><tr><th>Bloco</th><th class="n">Início</th><th class="n">Total</th><th class="n">Exp.</th><th class="n">Pend.</th><th class="n">NS</th></tr></thead><tbody>';
+  blocos.forEach(function(b){
+    if(b.cancelado){t+='<tr><td><b>'+b.label+'</b></td><td class="n" colspan="5" style="color:#C0392B;text-align:center">SEM EXPEDIÇÃO HOJE</td></tr>';return;}
+    var diasInfo=b.dias?'<br><span style="font-size:11px;color:#6C6963">'+b.dias+'</span>':'';
+    var inicioVal='—';
+    if(b.label==='NS')inicioVal=snapNsTotal||b.total;
+    else if(b.label==='AM')inicioVal=snapAmPlan||b.total;
+    else if(b.label==='PM')inicioVal=snapPmPlan||b.total;
+    t+='<tr><td><b>'+b.label+'</b>'+diasInfo+'</td><td class="n">'+inicioVal+'</td><td class="n">'+b.total+'</td><td class="n">'+b.exp+'</td><td class="n">'+b.pend+'</td><td class="n">'+b.ns+'</td></tr>';
+  });
+  var snapTotalDisp=snapTotal||d.total.total;
+  t+='<tr class="tot"><td>TOTAL</td><td class="n">'+snapTotalDisp+'</td><td class="n">'+d.total.total+'</td><td class="n">'+d.total.exp+'</td><td class="n">'+d.total.pend+'</td><td class="n">'+d.total.ns+'</td></tr></tbody></table>';
   $('blocks').innerHTML=t;
-
-  var sv=d.status_vistos||{};
-  var svTxt=Object.keys(sv).length?('Status detectados: '+Object.keys(sv).map(function(k){return k+'='+sv[k];}).join(' · ')):'';
-  $('foot').innerHTML='Station 10047 · '+(d.queue_ok?'fila/bancadas ao vivo':'⚠ fila/bancadas indisponível')+' · atualiza a cada 60s'+(svTxt?'<br><span style=\"font-size:10px\">'+svTxt+'</span>':'');
+  $('foot').innerHTML='Station '+(d.station||'')+(d.hub?' · '+d.hub:'')+' · '+(d.queue_ok?'fila/bancadas ao vivo':'fila/bancadas indisponível')+' · atualiza a cada 30s';
+  if(d.hub)$('hubName').textContent=d.hub+' · tempo real';
 }
-
 $('copy').onclick=()=>{navigator.clipboard.writeText($('report').dataset.raw||'');toast('Copiado');};
-$('wa').onclick=()=>{const t=($('report').dataset.raw||'').replace(/📦|⏳|🖥️|📍|🚘/g,'').trim();window.open('https://wa.me/?text='+encodeURIComponent($('report').dataset.raw||''),'_blank');};
-
+$('wa').onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent($('report').dataset.raw||''),'_blank');
 $('sendCookie').onclick=function(){
   var c=$('cookieIn').value.trim();
-  if(!API){$('cookieMsg').textContent='Configure a URL do Web App primeiro (campo de cima).';$('cookieMsg').className='msg err';$('setup').style.display='block';return;}
+  if(!API){$('cookieMsg').textContent='Configure a URL primeiro.';$('cookieMsg').className='msg err';return;}
   if(!c){$('cookieMsg').textContent='Cole o cookie.';$('cookieMsg').className='msg err';return;}
   $('cookieMsg').textContent='Enviando…';$('cookieMsg').className='msg';
+  fetch(API,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({cookie:c,station:STATION})}).then(function(){
+    $('cookieMsg').textContent='Cookie enviado! Testando…';$('cookieMsg').className='msg';
+    setTimeout(function(){
+      var cbName='_spxping_'+Date.now();
+      window[cbName]=function(d){
+        delete window[cbName];
+        if(d&&d.ok){$('cookieMsg').textContent='✓ Cookie salvo e conexão OK!';$('cookieMsg').className='msg ok';$('cookieIn').value='';setTimeout(fetchReport,500);}
+        else{enviarCookieJSONP(c);}
+      };
+      var s=document.createElement('script');
+      s.src=apiUrl('action=ping&callback='+cbName);
+      s.onerror=function(){delete window[cbName];enviarCookieJSONP(c);};
+      document.head.appendChild(s);
+    },2000);
+  }).catch(function(){enviarCookieJSONP(c);});
+};
+function enviarCookieJSONP(c){
   var cbName='_spxsave_'+Date.now();
   window[cbName]=function(d){
     delete window[cbName];
-    $('cookieMsg').textContent=d&&d.ok?'✓ Cookie salvo!':'⚠ '+(d&&d.faltando?'Faltam: '+d.faltando.join(', '):'Erro');
+    $('cookieMsg').textContent=d&&d.ok?'✓ Cookie salvo!':'⚠ '+(d&&d.faltando?'Faltam: '+d.faltando.join(', '):'Erro desconhecido — tente pelo editor do Apps Script');
     $('cookieMsg').className=d&&d.ok?'msg ok':'msg err';
-    if(d&&d.ok){$('cookieIn').value='';setTimeout(fetchReport,800);}
+    if(d&&d.ok){$('cookieIn').value='';setTimeout(fetchReport,500);}
   };
   var s=document.createElement('script');
-  s.src=API+'?action=savecookie&cookie='+encodeURIComponent(c)+'&callback='+cbName;
-  s.onerror=function(){ delete window[cbName]; $('cookieMsg').textContent='Erro ao enviar.';$('cookieMsg').className='msg err'; };
+  s.src=apiUrl('action=savecookie&cookie='+encodeURIComponent(c)+'&callback='+cbName);
+  s.onerror=function(){delete window[cbName];$('cookieMsg').textContent='⚠ Falhou. Cole o cookie direto na função meuCookie() do editor Apps Script.';$('cookieMsg').className='msg err';};
   document.head.appendChild(s);
-};
-
+}
+// ── GUICHÊ ────────────────────────────────────────────────────
+var g50=[];for(var i=1;i<=50;i++)g50.push({id:i,s:'livre',mesa:'',ga:'',pl:'',mot:'',t:null,tOcio:0,tOcioBase:null,esperaMin:0,esperaBase:null});
+var filaG=[];var _inicios={};var _hist={};var _fin=0,_ciclos=0,_inicioOp=null;var _pend=0;var _alocadoDesde={};var _hubNome='';
+function setGStatus(t,c){var d=$('gcdot'),x=$('gctxt');d.style.background=c;d.style.animation=c==='#16a34a'?'pulse 1.5s infinite':'none';x.textContent=t;x.style.color=c;}
+function tickG(){var n=new Date();$('gclk').textContent=n.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('gdt').textContent=n.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'}).replace('.','').toUpperCase();}
+function renderGuiche(d){
+  var queue=d.queueList||[];
+  var guichesAPI=d.guiches||[];
+  if(d.hub)_hubNome=d.hub;
+  // Fila de chamada = Atribuídos SEM mesa alocada (os com mesa viram card)
+  filaG=queue.filter(function(m){return m.status==='Atribuído' && !(m.docaAloc||'').trim();});
+  _pend=queue.filter(function(m){return m.status==='Pendente';}).length;
+  // Detecta finalizações p/ histórico (mesa que tinha placa e sumiu)
+  Object.keys(_inicios).forEach(function(pl){
+    var ainda=queue.find(function(m){return m.placa===pl&&m.status==='Ocupado';});
+    var g=g50.find(x=>x.pl===pl);
+    if(!ainda&&g&&g.mesa&&_inicios[pl]){
+      var dur=Math.round((Date.now()-_inicios[pl])/60000);
+      if(!_hist[g.mesa])_hist[g.mesa]=[];
+      _hist[g.mesa].push({placa:pl,gaiola:g.ga,inicio:new Date(_inicios[pl]).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),fim:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),durMin:dur});
+      _fin++;_ciclos++;if(!_inicioOp)_inicioOp=new Date();
+    }
+  });
+  // Reseta grid e aplica guichês da API (preserva bases de tempo)
+  g50.forEach(g=>{g.s='livre';g.mesa='';g.ga='';g.pl='';g.mot='';g.tOcio=0;g.esperaMin=0;});
+  guichesAPI.forEach(function(gc){
+    var g=g50.find(x=>x.id===gc.id);if(!g)return;
+    g.s=gc.status;g.mesa=gc.mesa||'';g.ga=gc.corredor||'';g.pl=gc.placa||'';g.mot=gc.motorista||'';
+    g.tOcio=gc.tempoOcioSeg||0;
+    g.esperaMin=gc.esperaMin||0;
+    // Tempo do PRÓXIMO = idle_time da mesa vindo do SPX (persiste no reload)
+    if(g.s==='aguardando'){
+      var wb=Date.now()-(gc.tempoOcioSeg||0)*1000;
+      if(!g.esperaBase||Math.abs(g.esperaBase-wb)>4000)g.esperaBase=wb;
+    } else { g.esperaBase=null; }
+    // base do tempo ocioso das mesas livres (idle_time do SPX)
+    if(gc.tempoOcioSeg>0){
+      var ob=Date.now()-gc.tempoOcioSeg*1000;
+      if(!g.tOcioBase||Math.abs(g.tOcioBase-ob)>4000)g.tOcioBase=ob;
+    } else { g.tOcioBase=null; }
+    if(g.s==='carregando'&&g.pl){
+      if(gc.tempoOcupSeg>0){var ir=Date.now()-gc.tempoOcupSeg*1000;if(!_inicios[g.pl]||Math.abs(_inicios[g.pl]-ir)>4000)_inicios[g.pl]=ir;}
+      else if(!_inicios[g.pl])_inicios[g.pl]=Date.now();
+      g.t=_inicios[g.pl];
+    }
+  });
+  // Limpa inícios de placas que não estão mais ocupando
+  Object.keys(_inicios).forEach(function(pl){
+    if(!queue.find(m=>m.placa===pl&&m.status==='Ocupado'))delete _inicios[pl];
+  });
+  setGStatus('AO VIVO · '+queue.length+' mot','#16a34a');
+  $('ghub').textContent=(_hubNome||'Hub')+' · '+new Date().toLocaleTimeString('pt-BR');
+  renderGGrid();renderGFila();renderGPills();renderGKPIs();
+}
+function renderGGrid(){
+  var el=$('ggrid'),now=Date.now();
+  var ativos=g50.filter(g=>g.s!=='livre'||g.mesa).length;
+  var cols=ativos<=2?2:ativos<=6?3:ativos<=12?4:ativos<=20?5:6;
+  var buf=cols-(ativos%cols||cols);buf=Math.min(buf+cols,50-ativos);
+  var livres=g50.filter(g=>g.s==='livre'&&!g.mesa).slice(0,Math.max(cols,buf));
+  var vis=g50.filter(g=>g.s!=='livre'||g.mesa).concat(livres);
+  el.style.gridTemplateColumns='repeat('+cols+',1fr)';
+  var h='';
+  vis.forEach(function(g){
+    var e2=g.t?now-g.t:null,min=e2?Math.floor(e2/60000):0,seg=e2?Math.floor(e2/1000)%60:0;
+    var ocioMs=g.tOcioBase?now-g.tOcioBase:(g.tOcio?g.tOcio*1000:0);
+    var ocioMin=Math.floor(ocioMs/60000),ocioSeg=Math.floor(ocioMs/1000)%60;
+    // tempo do PRÓXIMO = desde que apareceu alocado no painel (cronometrado localmente)
+    var espMs=g.esperaBase?now-g.esperaBase:0;
+    var espMin=Math.floor(espMs/60000),espSeg=Math.floor(espMs/1000)%60;
+    var alerta=g.s==='carregando'&&min>=SLA_CAR;
+    var ociosa=(g.s==='livre'||!g.pl)&&g.mesa&&ocioMin>=SLA_OCIO;
+    var espAlerta=g.s==='aguardando'&&espMin>=SLA_OCIO;  // pisca após 3min
+    var mmss=function(m,s){return m+':'+String(s).padStart(2,'0');};
+    var cs;
+    if(alerta)cs='alerta';
+    else if(ociosa)cs='ociosa';
+    else if(espAlerta)cs='ociosa';   // aguardando >3min pisca vermelho
+    else cs=g.s;
+    var tag;
+    if(alerta)tag='🟢 +'+mmss(min,seg);
+    else if(ociosa)tag='🔴 '+mmss(ocioMin,ocioSeg);
+    else if(g.s==='aguardando')tag=(espAlerta?'🔴 ':'⏳ ')+mmss(espMin,espSeg);
+    else tag=({livre:'LIVRE',carregando:'CARREGANDO'}[g.s]||g.s);
+    h+='<div class="g '+cs+'"><div class="gb">';
+    h+='<div class="gnum">G'+String(g.id).padStart(2,'0')+'<span class="gtag t-'+cs+'">'+tag+'</span></div>';
+    if(g.mesa){
+      h+='<div class="gmesa">'+g.mesa+(g.s==='aguardando'?' · PRÓXIMO':'')+'</div>';
+      h+='<div class="ggaio">'+(g.ga||'—')+'</div>';
+      if(g.pl||g.mot){
+        h+='<div class="ginfo">';
+        if(g.pl)h+='<div class="gplaca">'+g.pl+'</div>';
+        if(g.mot)h+='<div class="gmot">'+g.mot+'</div>';
+        h+='</div>';
+      }
+    } else {
+      h+='<div style="margin-top:auto;text-align:center;color:#94a3b8;font-size:11px;padding:6px 0">Disponível</div>';
+    }
+    h+='</div></div>';
+  });
+  el.innerHTML=h;
+}
+function renderGFila(){
+  var body=$('gfbody');
+  $('gfcnt').textContent=filaG.length+' na fila';
+  if(!filaG.length){body.innerHTML='<div class="ef">Fila vazia</div>';return;}
+  // ordena: prioritários primeiro, depois por posição
+  var sorted=[...filaG].sort(function(a,b){
+    if(a.prio&&!b.prio)return -1;if(!a.prio&&b.prio)return 1;
+    return (a.pos||'').localeCompare(b.pos||'');
+  });
+  var h='';
+  sorted.forEach((m,i)=>{
+    h+='<div class="fr'+(m.prio?' prio':'')+'">';
+    h+='<div class="fp">'+(i+1)+'</div><div class="fpl">'+(m.placa||'—')+'</div>';
+    h+='<div class="fn">'+(m.motorista||'—')+'</div>';
+    h+='<div class="fc">'+(m.corredor||'—')+'</div></div>';
+  });
+  body.innerHTML=h;
+}
+function renderGPills(){
+  var now=Date.now();
+  var nC=g50.filter(g=>g.s==='carregando').length;
+  var nOcio=g50.filter(g=>{var om=g.tOcioBase?Math.floor((now-g.tOcioBase)/60000):Math.floor((g.tOcio||0)/60);return (g.s==='livre'||!g.pl)&&g.mesa&&om>=SLA_OCIO;}).length;
+  $('g-car').textContent=nC;
+  $('g-ag').textContent=filaG.length;
+  $('g-pend').textContent=_pend;
+  $('g-flt').textContent=nOcio;
+  $('g-liv').textContent=g50.filter(g=>g.s==='livre'&&!g.mesa).length;
+  var tM=nC;if(tM<1)tM=1;
+  var carga=filaG.length;
+  var min=Math.max(SLA_CAR,Math.ceil(carga/tM)*SLA_CAR);if(min>240)min=240;
+  var fim=filaG.length>0?new Date(Date.now()+min*60000):null;
+  $('gprev').textContent=fim?fim.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'--:--';
+  $('gprev-d').textContent=fim?'~'+min+'min | '+tM+' mesas':'aguardando';
+}
+function renderGKPIs(){
+  var now=Date.now();
+  var todos=[];Object.values(_hist).forEach(a=>a.forEach(h=>todos.push(h.durMin)));
+  var med=todos.length?Math.round(todos.reduce((a,b)=>a+b,0)/todos.length):null;
+  var ativa=g50.filter(g=>g.s==='carregando'&&g.t);
+  var tmed=ativa.length?Math.round(ativa.reduce((a,g)=>a+(now-g.t),0)/ativa.length/60000):null;
+  var nOcio=g50.filter(g=>{var om=g.tOcioBase?Math.floor((now-g.tOcioBase)/60000):Math.floor((g.tOcio||0)/60);return (g.s==='livre'||!g.pl)&&g.mesa&&om>=SLA_OCIO;}).length;
+  $('k-giro').textContent=med!==null?med+'m':'--';
+  $('k-tmed').textContent=tmed!==null?tmed+'m':'--';
+  $('k-fin').textContent=_fin;$('k-fins').textContent=_ciclos+' ciclos';
+  $('k-cap').textContent=g50.filter(g=>g.s!=='livre'||g.mesa).length;
+  $('k-ocio').textContent=nOcio||'0';
+  $('k-sla').textContent=SLA_CAR;
+  if(_inicioOp)$('k-ini').textContent=_inicioOp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function abrirHist(){
+  var tb=$('htbody'),h='';
+  g50.filter(g=>g.s==='carregando'&&g.t).forEach(g=>{
+    var dur=Math.round((Date.now()-g.t)/60000);var al=dur>=SLA_CAR;
+    h+='<tr><td>'+g.mesa+'</td><td>'+g.pl+'</td><td>'+g.ga+'</td><td>em andamento</td><td>--</td><td style="color:'+(al?'var(--rd)':'var(--wait)')+';font-weight:700">'+dur+'m</td><td><span class="bdg '+(al?'br':'by')+'">'+(al?'⚠':'em curso')+'</span></td></tr>';
+  });
+  Object.keys(_hist).sort((a,b)=>(parseInt(a.match(/\d+/)||0))-(parseInt(b.match(/\d+/)||0))).forEach(mesa=>{
+    var arr=_hist[mesa];var med=Math.round(arr.reduce((a,x)=>a+x.durMin,0)/arr.length);
+    h+='<tr style="background:#f8fafc;font-weight:700"><td colspan="5">'+mesa+' · '+arr.length+'x · média '+med+'m</td><td>'+med+'m</td><td><span class="bdg '+(med<=SLA_CAR?'bg':'br')+'">'+(med<=SLA_CAR?'OK':'EXCEDEU')+'</span></td></tr>';
+    arr.forEach(x=>{var df=x.durMin-SLA_CAR;h+='<tr><td style="padding-left:20px;color:var(--muted)">└</td><td>'+x.placa+'</td><td>'+x.gaiola+'</td><td>'+x.inicio+'</td><td>'+x.fim+'</td><td style="color:'+(x.durMin<=SLA_CAR?'var(--ok)':'var(--miss)')+';font-weight:700">'+x.durMin+'m</td><td><span class="bdg '+(df<=0?'bg':'br')+'">'+(df===0?'=SLA':(df>0?'+'+df:''+df)+'m')+'</span></td></tr>';});
+  });
+  $('htbody').innerHTML=h||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Sem finalizações ainda</td></tr>';
+  $('mh').classList.add('open');
+}
+function fecharHist(){$('mh').classList.remove('open');}
+// ── INIT ─────────────────────────────────────────────────────
+setInterval(tickG,1000);tickG();
+// timers correm por segundo (grid + KPIs + pills recalculam do timestamp)
+setInterval(()=>{renderGGrid();renderGKPIs();renderGPills();},1000);
 init();
 </script>
 </body>
