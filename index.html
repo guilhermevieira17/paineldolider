@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPX Hub Operations v9 — Multi-Hub</title>
+<title>SPX Hub Operations v10 — Painel do Líder</title>
 <style>
   :root{
     --spx:#EE4D2D;--spx-d:#C43C1F;--ink:#15161A;--paper:#F6F5F2;--card:#fff;
@@ -145,12 +145,49 @@
   .mht td{padding:6px 12px;border-bottom:1px solid #f1f5f9;font-family:'Share Tech Mono',monospace}
   .bdg{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700}
   .bg{background:var(--gn2);color:var(--gn)}.br{background:var(--rd2);color:var(--rd)}.by{background:#fef9c3;color:var(--wait)}
+  /* ══ AUDITORIA TOP 10 ══ */
+  .auwrap{max-width:1100px;margin:0 auto;padding:18px 16px 60px}
+  .auhead{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--ink);padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+  .ausub{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+  .asub{padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;color:var(--muted);background:var(--card);border:1.5px solid var(--line);border-radius:9px;transition:all .15s}
+  .asub:hover{border-color:var(--spx)}
+  .asub.active{background:var(--spx);color:#fff;border-color:var(--spx)}
+  .apage{display:none}.apage.active{display:block}
+  .autitle{font-size:15px;font-weight:900;margin-bottom:12px}
+  .aukpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .aukpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .aukpi .l{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .aukpi .v{font-family:var(--mono);font-size:30px;font-weight:700;margin-top:4px;line-height:1}
+  .aukpi .s{font-size:11px;color:var(--muted);margin-top:3px}
+  .aukpi.ok .v{color:var(--ok)}.aukpi.warn .v{color:var(--wait)}.aukpi.bad .v{color:var(--miss)}.aukpi.spx .v{color:var(--spx)}
+  .aucmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .aucmpcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .aucmpcard h4{font-size:13px;font-weight:800;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+  .aucmpcard.am h4{color:var(--wait)}.aucmpcard.pm h4{color:var(--spx)}
+  .aucmprow{display:flex;justify-content:space-between;font-size:13px;padding:4px 0}
+  .aucmprow b{font-family:var(--mono)}
+  table.autbl{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;font-size:13px}
+  table.autbl th{background:var(--ink);color:#fff;text-align:left;padding:9px 12px;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
+  table.autbl th.n,table.autbl td.n{text-align:right;font-family:var(--mono)}
+  table.autbl td{padding:8px 12px;border-bottom:1px solid var(--line)}
+  table.autbl tr:last-child td{border-bottom:none}
+  .rank1{background:linear-gradient(90deg,#FFF7E0,#fff)}.rank2{background:linear-gradient(90deg,#F0F0F0,#fff)}.rank3{background:linear-gradient(90deg,#FBEEE3,#fff)}
+  .medal{font-size:15px}
+  .autag{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10px;font-weight:800}
+  .autag.ok{background:#EAF7EF;color:var(--ok)}.autag.warn{background:#FEF9E7;color:var(--wait)}.autag.bad{background:#FDEDEC;color:var(--miss)}
+  .aualert{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--miss);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+  .aualert .g{font-family:var(--mono);font-weight:900;font-size:16px;color:var(--miss)}
+  .aualert .info{font-size:12px;color:var(--muted)}
+  .auempty{text-align:center;padding:40px;color:var(--muted);font-size:13px}
+  @media(max-width:640px){.aucmp{grid-template-columns:1fr}}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="tabs">
   <div class="tab active" id="tab-report" onclick="abrirTab('report')">📊 Report Operacional</div>
   <div class="tab" id="tab-guiche" onclick="abrirTab('guiche')">🏭 Guichê de Carregamento</div>
+  <div class="tab" id="tab-auditoria" onclick="abrirTab('auditoria')">🎯 Auditoria Top 10</div>
 </div>
 <!-- ══ ABA REPORT ══ -->
 <div class="page active" id="page-report">
@@ -251,6 +288,52 @@
   </div>
 </div>
 </div>
+<!-- ══ ABA AUDITORIA TOP 10 ══ -->
+<div class="page" id="page-auditoria">
+<div class="auwrap">
+  <div class="auhead">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="logo">S</div>
+      <div><h1 style="font-size:17px">Auditoria — Top 10<small id="auHub" style="display:block;font-size:11px;color:var(--muted);font-weight:600">tempo real</small></h1></div>
+    </div>
+    <div class="live"><span class="dot" id="auDot"></span><span id="auLive">conectando…</span></div>
+  </div>
+  <div class="ausub">
+    <div class="asub active" onclick="auSub('dash',this)">📊 Dashboard</div>
+    <div class="asub" onclick="auSub('top10',this)">🏆 Top 10</div>
+    <div class="asub" onclick="auSub('alertas',this)">🚨 Alertas</div>
+    <div class="asub" onclick="auSub('erros',this)">❌ Erros</div>
+    <div class="asub" onclick="auSub('disp',this)">📈 Dispersão</div>
+  </div>
+  <!-- Dashboard -->
+  <div class="apage active" id="apage-dash">
+    <div class="aukpis" id="auKpis"></div>
+    <div class="aucmp" id="auCmp"></div>
+  </div>
+  <!-- Top 10 -->
+  <div class="apage" id="apage-top10">
+    <div class="autitle">🏆 Ranking de Operadores <span id="auTop10Sub" style="font-size:12px;color:var(--muted);font-weight:400"></span></div>
+    <div id="auTop10"></div>
+  </div>
+  <!-- Alertas -->
+  <div class="apage" id="apage-alertas">
+    <div class="autitle">🚨 Gaiolas Críticas <span id="auAlertaSub" style="font-size:12px;color:var(--muted);font-weight:400"></span></div>
+    <div id="auAlertas"></div>
+  </div>
+  <!-- Erros -->
+  <div class="apage" id="apage-erros">
+    <div class="aukpis" id="auErrKpis"></div>
+    <div class="autitle">❌ Erros por Operador</div>
+    <div id="auErros"></div>
+  </div>
+  <!-- Dispersão -->
+  <div class="apage" id="apage-disp">
+    <div class="autitle">📈 Tempo Médio × Erros por Operador</div>
+    <canvas id="auChartDisp" style="max-height:380px;margin-bottom:16px"></canvas>
+    <div id="auDisp"></div>
+  </div>
+</div>
+</div>
 <div class="mh" id="mh" onclick="if(event.target===this)fecharHist()">
   <div class="mhb">
     <h3>📊 Histórico por Mesa <button onclick="fecharHist()">×</button></h3>
@@ -319,7 +402,7 @@ function trocarHub(id){
   g50.forEach(g=>{g.s='livre';g.mesa='';g.ga='';g.pl='';g.mot='';g.tOcio=0;g.tOcioBase=null;g.esperaBase=null;});
   $('ghub').textContent=$('hubSel').options[$('hubSel').selectedIndex].text+' · carregando...';
   toast('Hub: '+$('hubSel').options[$('hubSel').selectedIndex].text);
-  fetchReport();fetchGuiche();
+  fetchReport();fetchGuiche();fetchAuditoria();
 }
 function start(){
   carregarHubs();
@@ -330,6 +413,8 @@ function start(){
   fetchGuiche();
   if(gtimer)clearInterval(gtimer);
   gtimer=setInterval(fetchGuiche,3000);
+  // Auditoria: 60s
+  startAuditoria();
 }
 var gtimer=null;
 function fetchGuiche(){
@@ -647,6 +732,152 @@ function fecharHist(){$('mh').classList.remove('open');}
 setInterval(tickG,1000);tickG();
 // timers correm por segundo (grid + KPIs + pills recalculam do timestamp)
 setInterval(()=>{renderGGrid();renderGKPIs();renderGPills();},1000);
+// ── AUDITORIA TOP 10 ──────────────────────────────────────────
+var auTimer=null, auChart=null, auData=null;
+function auSub(t,el){
+  document.querySelectorAll('.asub').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.apage').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  $('apage-'+t).classList.add('active');
+  if(t==='disp'&&auData)renderAuDisp();
+}
+function startAuditoria(){
+  if(!API)return;
+  fetchAuditoria();
+  if(auTimer)clearInterval(auTimer);
+  auTimer=setInterval(fetchAuditoria,60000); // auditoria muda devagar, 60s basta
+}
+function fetchAuditoria(){
+  if(!API)return;
+  var cbName='_spxau_'+Date.now();
+  window[cbName]=function(d){
+    delete window[cbName];
+    if(!d){auSetLive(false);return;}
+    if(!d.ok){
+      auSetLive(false);
+      $('auKpis').innerHTML='<div class="auempty">'+(d.erro==='cookie_ausente_ou_incompleto'?'Cookie expirado — atualize na aba Report.':'Sem dados de auditoria ainda. Aparecem quando a conferência começa.')+'</div>';
+      return;
+    }
+    auData=d;auSetLive(true,d.atualizado_em);
+    if(d.hub)$('auHub').textContent=d.hub+' · tempo real';
+    renderAuDashboard(d);renderAuTop10(d);renderAuAlertas(d);renderAuErros(d);
+    if($('apage-disp').classList.contains('active'))renderAuDisp();
+  };
+  var s=document.createElement('script');
+  s.src=apiUrl('action=auditoria&callback='+cbName);
+  s.onerror=function(){delete window[cbName];auSetLive(false);};
+  document.head.appendChild(s);
+  setTimeout(function(){try{document.head.removeChild(s);}catch(e){}},20000);
+}
+function auSetLive(ok,ts){
+  $('auDot').classList.toggle('stale',!ok);
+  $('auLive').textContent=ok?('atualizado '+(ts||'')):'sem dados';
+}
+function renderAuDashboard(d){
+  var k=d.kpi||{};
+  var accCls=k.accuracy>=98?'ok':k.accuracy>=95?'warn':'bad';
+  $('auKpis').innerHTML=
+    '<div class="aukpi '+accCls+'"><div class="l">Acuracidade</div><div class="v">'+(k.accuracy||0)+'%</div><div class="s">'+(k.totalErros||0)+' erros / '+(k.totalPkg||0).toLocaleString('pt-BR')+' pcts</div></div>'+
+    '<div class="aukpi ok"><div class="l">Rotas Validadas</div><div class="v">'+(k.rotaPct||0)+'%</div><div class="s">'+(k.validados||0)+' / '+(k.totalRotas||0)+' rotas</div></div>'+
+    '<div class="aukpi spx"><div class="l">Pacotes Bipados</div><div class="v">'+(k.totalPkg||0).toLocaleString('pt-BR')+'</div><div class="s">'+(k.totalRotas||0)+' gaiolas</div></div>'+
+    '<div class="aukpi"><div class="l">Tempo Médio</div><div class="v">'+(k.tempoMedio||0)+'m</div><div class="s">por gaiola</div></div>'+
+    '<div class="aukpi bad"><div class="l">Missing</div><div class="v">'+(k.totalMissing||0)+'</div></div>'+
+    '<div class="aukpi warn"><div class="l">Missort</div><div class="v">'+(k.totalMissorted||0)+'</div></div>';
+  // AM vs PM
+  function card(t,turno,cls){
+    if(!t||!t.rotas)return '<div class="aucmpcard '+cls+'"><h4>'+turno+'</h4><div class="auempty" style="padding:16px">Sem dados</div></div>';
+    return '<div class="aucmpcard '+cls+'"><h4>'+turno+'</h4>'+
+      '<div class="aucmprow"><span>Rotas</span><b>'+t.rotas+'</b></div>'+
+      '<div class="aucmprow"><span>Pacotes</span><b>'+t.pacotes.toLocaleString('pt-BR')+'</b></div>'+
+      '<div class="aucmprow"><span>Acuracidade</span><b>'+t.accuracy+'%</b></div>'+
+      '<div class="aucmprow"><span>Tempo médio</span><b>'+t.tempoMedio+'m</b></div>'+
+      '<div class="aucmprow"><span>Missing / Missort</span><b>'+t.missing+' / '+t.missorted+'</b></div></div>';
+  }
+  $('auCmp').innerHTML=card(d.am,'🌅 AM — Manhã','am')+card(d.pm,'🌙 PM — Tarde','pm');
+}
+function renderAuTop10(d){
+  var ops=d.top10||[];
+  $('auTop10Sub').textContent=ops.length?('· '+(d.operadores||[]).length+' operadores no total'):'';
+  if(!ops.length){$('auTop10').innerHTML='<div class="auempty">Sem dados de operadores ainda.</div>';return;}
+  var med=ops.reduce((s,o)=>s+o.tempoMedio,0)/ops.length;
+  var h='<table class="autbl"><thead><tr><th>#</th><th>Operador</th><th class="n">Gaiolas</th><th class="n">Pacotes</th><th class="n">Tempo méd.</th><th class="n">Erros</th><th>Status</th></tr></thead><tbody>';
+  ops.forEach(function(o,i){
+    var cls=i===0?'rank1':i===1?'rank2':i===2?'rank3':'';
+    var medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+    var okSla=o.tempoMedio<=7;
+    var tag=okSla?'<span class="autag ok">✓ OK</span>':'<span class="autag warn">⚠ +SLA</span>';
+    h+='<tr class="'+cls+'"><td class="medal">'+medal+'</td><td><b>'+o.nome+'</b></td>'+
+      '<td class="n">'+o.gaiolas+'</td><td class="n">'+o.pacotes.toLocaleString('pt-BR')+'</td>'+
+      '<td class="n" style="color:'+(okSla?'var(--ok)':'var(--wait)')+'">'+o.tempoMedio+'m</td>'+
+      '<td class="n" style="color:'+(o.erros>0?'var(--miss)':'inherit')+'">'+o.erros+'</td><td>'+tag+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  $('auTop10').innerHTML=h;
+}
+function renderAuAlertas(d){
+  var LIM=15;
+  var criticas=(d.gaiolas||[]).filter(g=>g.tempo>=LIM);
+  $('auAlertaSub').textContent=criticas.length?('· '+criticas.length+' acima de '+LIM+'min'):'';
+  if(!criticas.length){
+    $('auAlertas').innerHTML='<div class="auempty"><div style="font-size:40px">✅</div><div style="color:var(--ok);font-weight:700;margin-top:8px">Nenhuma gaiola acima de '+LIM+'min</div></div>';
+    return;
+  }
+  var h='';
+  criticas.forEach(function(g){
+    h+='<div class="aualert"><div><span class="g">'+g.gaiola+'</span> <span class="info">· '+g.operador+' · '+g.pacotes+' pcts'+(g.erros>0?' · '+g.erros+' erros':'')+'</span></div>'+
+      '<div style="font-family:var(--mono);font-weight:900;color:var(--miss)">'+g.tempo+'m</div></div>';
+  });
+  $('auAlertas').innerHTML=h;
+}
+function renderAuErros(d){
+  var k=d.kpi||{};
+  $('auErrKpis').innerHTML=
+    '<div class="aukpi bad"><div class="l">Total Missing</div><div class="v">'+(k.totalMissing||0)+'</div><div class="s">'+(k.totalPkg>0?((k.totalMissing/k.totalPkg)*100).toFixed(2)+'% do bipado':'—')+'</div></div>'+
+    '<div class="aukpi warn"><div class="l">Total Missort</div><div class="v">'+(k.totalMissorted||0)+'</div><div class="s">'+(k.totalPkg>0?((k.totalMissorted/k.totalPkg)*100).toFixed(2)+'% do bipado':'—')+'</div></div>'+
+    '<div class="aukpi"><div class="l">Total Erros</div><div class="v">'+(k.totalErros||0)+'</div></div>';
+  var comErro=(d.operadores||[]).filter(o=>o.erros>0).sort((a,b)=>b.erros-a.erros);
+  if(!comErro.length){$('auErros').innerHTML='<div class="auempty">Nenhum erro registrado. 🎉</div>';return;}
+  var h='<table class="autbl"><thead><tr><th>Operador</th><th class="n">Gaiolas</th><th class="n">Missing</th><th class="n">Missort</th><th class="n">Total Erros</th></tr></thead><tbody>';
+  comErro.forEach(function(o){
+    h+='<tr><td><b>'+o.nome+'</b></td><td class="n">'+o.gaiolas+'</td>'+
+      '<td class="n" style="color:var(--miss)">'+o.missing+'</td>'+
+      '<td class="n" style="color:var(--wait)">'+o.missorted+'</td>'+
+      '<td class="n" style="font-weight:800">'+o.erros+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  $('auErros').innerHTML=h;
+}
+function renderAuDisp(){
+  if(!auData||typeof Chart==='undefined')return;
+  var ops=(auData.operadores||[]).filter(o=>o.gaiolas>0);
+  var ctx=$('auChartDisp').getContext('2d');
+  if(auChart)auChart.destroy();
+  auChart=new Chart(ctx,{
+    type:'scatter',
+    data:{datasets:[{
+      label:'Operadores',
+      data:ops.map(o=>({x:o.tempoMedio,y:o.erros,r:Math.max(4,Math.min(18,o.gaiolas/2)),nome:o.nome,g:o.gaiolas})),
+      backgroundColor:ops.map(o=>o.tempoMedio<=7?'rgba(30,132,73,.6)':'rgba(192,57,43,.6)'),
+      borderColor:ops.map(o=>o.tempoMedio<=7?'#1E8449':'#C0392B'),borderWidth:1.5,
+      pointRadius:ops.map(o=>Math.max(4,Math.min(18,o.gaiolas/2)))
+    }]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var d=c.raw;return d.nome+': '+d.x+'min, '+d.y+' erros, '+d.g+' gaiolas';}}}},
+      scales:{
+        x:{title:{display:true,text:'Tempo médio (min)'},grid:{color:'#eee'}},
+        y:{title:{display:true,text:'Erros'},beginAtZero:true,grid:{color:'#eee'}}
+      }
+    }
+  });
+  // tabela abaixo
+  var h='<table class="autbl"><thead><tr><th>Operador</th><th class="n">Tempo méd.</th><th class="n">Gaiolas</th><th class="n">Erros</th></tr></thead><tbody>';
+  ops.slice(0,15).forEach(function(o){
+    h+='<tr><td><b>'+o.nome+'</b></td><td class="n" style="color:'+(o.tempoMedio<=7?'var(--ok)':'var(--miss)')+'">'+o.tempoMedio+'m</td><td class="n">'+o.gaiolas+'</td><td class="n">'+o.erros+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  $('auDisp').innerHTML=h;
+}
 init();
 </script>
 </body>
