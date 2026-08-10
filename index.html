@@ -147,6 +147,7 @@
   .bg{background:var(--gn2);color:var(--gn)}.br{background:var(--rd2);color:var(--rd)}.by{background:#fef9c3;color:var(--wait)}
 
 /* ===== TOP 10 (CSS escopado em #top10-scope) ===== */
+#top10-scope #t10cfg{display:none!important}
 #top10-scope{
   --orange:#EE4D2D; --orange-d:#d13d1f; --orange-dim:rgba(238,77,45,0.08); --orange-glow:rgba(238,77,45,0.2);
   --bg:#F5F5F5; --surface:#FFFFFF; --surface2:#FAFAFA; --surface3:#F0F0F0;
@@ -465,8 +466,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;}
     <img src="https://upload.wikimedia.org/wikipedia/commons/f/fe/Shopee.svg" alt="Shopee">
     <span>SPX Audit</span>
   </div>
-  <button class="active" onclick="showTab('t10cfg',this)"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
-  <button onclick="showTab('dash',this)"><i class="fa-solid fa-chart-line"></i> Dashboard</button>
+  <button class="active" onclick="showTab('dash',this)"><i class="fa-solid fa-chart-line"></i> Dashboard</button>
   <button onclick="showTab('alertas',this)"><i class="fa-solid fa-fire"></i> Alertas</button>
   <button onclick="showTab('errors',this)"><i class="fa-solid fa-triangle-exclamation"></i> Erros</button>
   <button onclick="showTab('dispersao',this)"><i class="fa-solid fa-circle-dot"></i> Dispersão</button>
@@ -977,6 +977,16 @@ function rtFetch(){
     montarAuditDataDaAPI(d.targets);
     rtSetStatus('🟢 AO VIVO · '+auditData.length+' registros · '+(d.updated||'')+(d.hub?' · '+d.hub:''));
     if(typeof syncAndShow==='function')syncAndShow();
+    // re-renderiza TODAS as abas de auditoria com os dados novos
+    try{
+      if(typeof renderAlertas==='function')renderAlertas();
+      if(typeof renderErrors==='function')renderErrors();
+      if(typeof renderDispersao==='function')renderDispersao();
+      if(typeof renderAfericoes==='function')renderAfericoes();
+      if(typeof renderPorHora==='function')renderPorHora();
+      if(typeof renderCompare==='function')renderCompare();
+      if(typeof renderCarregamento==='function')renderCarregamento();
+    }catch(e){console.warn('render',e);}
   };
   const s=document.createElement('script');
   s.src=rtApiUrl('action=auditraw&callback='+cbName);
@@ -989,10 +999,10 @@ function rtSetStatus(msg){
   if(el)el.innerHTML='<i class="fa-solid fa-bolt"></i> '+msg;
 }
 function rtStart(){
-  if(!RT_API){
-    const u=prompt('Cole a URL do Web App (termina em /exec):','');
-    if(u){RT_API=u.trim();localStorage.setItem(RT_LS_URL,RT_API);}
-  }
+  // API herdada do painel principal (Report/Guichê). Não pede prompt.
+  if(!RT_API)RT_API=localStorage.getItem('spx_report_api_url')||'';
+  if(!RT_STATION)RT_STATION=localStorage.getItem('spx_station_id')||'';
+  if(!RT_API){rtSetStatus('Configure a URL no Report primeiro.');return;}
   rtFetch();
   if(rtTimer)clearInterval(rtTimer);
   rtTimer=setInterval(rtFetch,60000);
@@ -2729,6 +2739,16 @@ function rtFetch(){
     montarAuditDataDaAPI(d.targets);
     rtSetStatus('🟢 AO VIVO · '+auditData.length+' registros · '+(d.updated||'')+(d.hub?' · '+d.hub:''));
     if(typeof syncAndShow==='function')syncAndShow();
+    // re-renderiza TODAS as abas de auditoria com os dados novos
+    try{
+      if(typeof renderAlertas==='function')renderAlertas();
+      if(typeof renderErrors==='function')renderErrors();
+      if(typeof renderDispersao==='function')renderDispersao();
+      if(typeof renderAfericoes==='function')renderAfericoes();
+      if(typeof renderPorHora==='function')renderPorHora();
+      if(typeof renderCompare==='function')renderCompare();
+      if(typeof renderCarregamento==='function')renderCarregamento();
+    }catch(e){console.warn('render',e);}
   };
   const s=document.createElement('script');
   s.src=rtApiUrl('action=auditraw&callback='+cbName);
@@ -2741,10 +2761,10 @@ function rtSetStatus(msg){
   if(el)el.innerHTML='<i class="fa-solid fa-bolt"></i> '+msg;
 }
 function rtStart(){
-  if(!RT_API){
-    const u=prompt('Cole a URL do Web App (termina em /exec):','');
-    if(u){RT_API=u.trim();localStorage.setItem(RT_LS_URL,RT_API);}
-  }
+  // API herdada do painel principal (Report/Guichê). Não pede prompt.
+  if(!RT_API)RT_API=localStorage.getItem('spx_report_api_url')||'';
+  if(!RT_STATION)RT_STATION=localStorage.getItem('spx_station_id')||'';
+  if(!RT_API){rtSetStatus('Configure a URL no Report primeiro.');return;}
   rtFetch();
   if(rtTimer)clearInterval(rtTimer);
   rtTimer=setInterval(rtFetch,60000);
@@ -3957,7 +3977,11 @@ renderHistory();
 function initTop10API(api, station){
   if(api){RT_API=api;localStorage.setItem(RT_LS_URL,api);}
   if(station){RT_STATION=String(station);localStorage.setItem(RT_LS_STATION,String(station));}
-  if(RT_API){rtStart();}
+  if(RT_API){
+    rtStart();
+    // abre direto no Dashboard
+    try{var db=document.querySelector('#top10-scope .nav button');if(db)showTab('dash',db);}catch(e){}
+  }
 }
 
 window.__initTop10API=initTop10API;
