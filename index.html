@@ -508,15 +508,14 @@ function renderGuiche(d){
     g.s=gc.status;g.mesa=gc.mesa||'';g.ga=gc.corredor||'';g.pl=gc.placa||'';g.mot=gc.motorista||'';
     g.tOcio=gc.tempoOcioSeg||0;
     g.esperaMin=gc.esperaMin||0;
-    // Tempo do PRÓXIMO = idle_time da mesa vindo do SPX (persiste no reload)
+    // Tempo do PRÓXIMO = idle_time da mesa vindo do SPX (sempre re-sincroniza)
     if(g.s==='aguardando'){
-      var wb=Date.now()-(gc.tempoOcioSeg||0)*1000;
-      if(!g.esperaBase||Math.abs(g.esperaBase-wb)>4000)g.esperaBase=wb;
+      g.esperaBase=Date.now()-(gc.tempoOcioSeg||0)*1000;
     } else { g.esperaBase=null; }
-    // base do tempo ocioso das mesas livres (idle_time do SPX)
+    // Tempo ocioso das mesas livres = idle_time do SPX (sempre re-sincroniza,
+    // não deixa contador local divergir do SPX)
     if(gc.tempoOcioSeg>0){
-      var ob=Date.now()-gc.tempoOcioSeg*1000;
-      if(!g.tOcioBase||Math.abs(g.tOcioBase-ob)>4000)g.tOcioBase=ob;
+      g.tOcioBase=Date.now()-gc.tempoOcioSeg*1000;
     } else { g.tOcioBase=null; }
     if(g.s==='carregando'&&g.pl){
       if(gc.tempoOcupSeg>0){var ir=Date.now()-gc.tempoOcupSeg*1000;if(!_inicios[g.pl]||Math.abs(_inicios[g.pl]-ir)>4000)_inicios[g.pl]=ir;}
