@@ -1372,7 +1372,9 @@ function montarAuditDataDaAPI(targets){
         const status=t.status===4?'Validated':'Not Validated';
         const revalidCount=t.revalCount||0;
         const revalidOp=t.revalOp?t.revalOp.replace(/\[.*?\]/,'').trim():'';
-        auditData.push({name,bench:corridor,time:diff,missorted,missing,packages,street,status,_startRaw:t.start,_atId:t.at,revalidCount,revalidOp});
+        // _startRaw como STRING de data (igual o CSV), pra renderPorHora/etc funcionarem
+        const startStr=t.start?new Date(t.start*1000).toISOString().replace('T',' ').substring(0,19):'';
+        auditData.push({name,bench:corridor,time:diff,missorted,missing,packages,street,status,_startRaw:startStr,_startTs:t.start*1000,_atId:t.at,revalidCount,revalidOp});
         ops.add(name);benches.add(corridor);
         aiStats.totalMissorted+=missorted;aiStats.totalMissing+=missing;
         aiStats.totalPackages+=packages;aiStats.totalRoutes++;
@@ -2639,6 +2641,16 @@ function initTop10API(api, station){
   if(RT_API){rtStart();try{var db=document.querySelector('#top10-scope .nav button');if(db)showTab('dash',db);}catch(e){}}
 }
 window.__initTop10API=initTop10API;
+// expõe funções do Top10 chamadas por onclick no HTML (estão dentro do IIFE)
+window.showTab=showTab;
+window.syncAndShow=syncAndShow;
+window.rtStart=rtStart;
+window.rtConfigUrl=(typeof rtConfigUrl!=='undefined')?rtConfigUrl:function(){};
+window.saveTurn=(typeof saveTurn!=='undefined')?saveTurn:function(){};
+window.exportRankImg=(typeof exportRankImg!=='undefined')?exportRankImg:function(){};
+window.clearHistory=(typeof clearHistory!=='undefined')?clearHistory:function(){};
+window.abrirHist=(typeof abrirHist!=='undefined')?abrirHist:function(){};
+window.fecharHist=(typeof fecharHist!=='undefined')?fecharHist:function(){};
 
 })();
 
