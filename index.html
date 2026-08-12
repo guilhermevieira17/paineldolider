@@ -351,7 +351,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;}
 #top10-scope .delta-up{background:var(--success-bg);color:var(--success);}
 #top10-scope .delta-down{background:var(--danger-bg);color:var(--danger);}
 #top10-scope .delta-eq{background:var(--surface3);color:var(--text-2);}
-#top10-scope #t10cfg{display:none!important}
+#top10-scope #t10cfg, #top10-scope #compare, #top10-scope #history{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -476,12 +476,10 @@ table{width:100%;border-collapse:collapse;font-size:13px;}
   <button onclick="showTab('alertas',this)"><i class="fa-solid fa-fire"></i> Alertas</button>
   <button onclick="showTab('errors',this)"><i class="fa-solid fa-triangle-exclamation"></i> Erros</button>
   <button onclick="showTab('dispersao',this)"><i class="fa-solid fa-circle-dot"></i> Dispersão</button>
-  <button onclick="showTab('compare',this)"><i class="fa-solid fa-code-compare"></i> AM vs PM</button>
   <button onclick="showTab('afericoes',this)"><i class="fa-solid fa-clipboard-check"></i> Aferições</button>
   <button onclick="showTab('porhora',this)"><i class="fa-solid fa-gauge-high"></i> Por Hora</button>
   <button onclick="showTab('etiquetagem',this)"><i class="fa-solid fa-tag"></i> Etiquetagem</button>
   <button onclick="showTab('carregamento',this)"><i class="fa-solid fa-truck-loading"></i> Carregamento</button>
-  <button onclick="showTab('history',this)"><i class="fa-solid fa-clock-rotate-left"></i> Histórico</button>
 </div>
 
 <div id="t10cfg" class="tab active">
@@ -900,8 +898,15 @@ function abrirTab(t){
   if(t==='top10'){
     var apiUrl2=API||localStorage.getItem('spx_report_api_url')||'';
     var st2=STATION||localStorage.getItem('spx_station_id')||'';
-    if(apiUrl2 && window.__initTop10API){ window.__initTop10API(apiUrl2, st2); window.__t10started=true; }
-    else if(!apiUrl2){ var el=document.getElementById('csvStatus'); if(el)el.innerHTML='<i class="fa-solid fa-triangle-exclamation"></i> Configure a URL da API na aba Report primeiro.'; }
+    var el=document.getElementById('csvStatus');
+    if(!apiUrl2){
+      if(el)el.innerHTML='<b style="color:#c0392b">⚠ URL da API não configurada.</b> Vá na aba Report e configure primeiro.';
+    } else if(!window.__initTop10API){
+      if(el)el.innerHTML='<b style="color:#c0392b">⚠ Erro interno: módulo de auditoria não carregou.</b>';
+    } else {
+      if(el)el.innerHTML='<i class="fa-solid fa-spinner"></i> Conectando à API… (station '+st2+')';
+      window.__initTop10API(apiUrl2, st2); window.__t10started=true;
+    }
   }
 }
 // ── REPORT ────────────────────────────────────────────────────
