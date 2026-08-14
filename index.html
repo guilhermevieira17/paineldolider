@@ -397,6 +397,24 @@
     </div>
   </div>
   <div class="grid" id="stats"></div>
+  <div id="opsclock-cfg" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:12px 0;font-size:13px">
+    <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="var b=document.getElementById('opsclock-cfg-body');b.style.display=b.style.display==='none'?'block':'none';">
+      <span style="font-weight:800">🎯 OpsClock — horários-meta de expedição</span>
+      <span style="font-size:11px;color:var(--muted)">clique para configurar ▾</span>
+    </div>
+    <div id="opsclock-cfg-body" style="display:none;margin-top:10px">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end">
+        <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">AM início</label><input type="time" id="ops-am-ini" value="06:00" style="padding:6px;border:1px solid var(--line);border-radius:6px"></div>
+        <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">AM fim (meta)</label><input type="time" id="ops-am-fim" value="10:30" style="padding:6px;border:1px solid var(--line);border-radius:6px"></div>
+        <div style="width:1px;height:34px;background:var(--line)"></div>
+        <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">PM início</label><input type="time" id="ops-pm-ini" value="12:00" style="padding:6px;border:1px solid var(--line);border-radius:6px"></div>
+        <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">PM fim (meta)</label><input type="time" id="ops-pm-fim" value="14:30" style="padding:6px;border:1px solid var(--line);border-radius:6px"></div>
+        <button onclick="salvarOpsClock()" style="background:var(--spx);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer">Salvar</button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:8px">O horário é salvo por hub — cada base mantém o seu.</p>
+    </div>
+  </div>
+  <div id="opsclock"></div>
   <div id="blocks"></div>
   <div class="foot" id="foot"></div>
 </div>
@@ -546,6 +564,7 @@
     <div class="stat-card"><h3>Bancadas Ativas</h3><p id="outBenches">0</p></div>
     <div class="stat-card"><h3>Operadores</h3><p id="outOps">0</p></div>
     <div class="stat-card accent"><h3>Total Auditado</h3><p id="outTotalD">0</p></div>
+    <div class="stat-card"><h3>Falta Validar</h3><p id="outFaltaValidar" style="color:var(--warning)">--</p></div>
   </div>
   <div class="main-grid">
     <div class="panel">
@@ -1008,6 +1027,110 @@ function setLive(ok,ts){
   $('liveTxt').textContent=ok?('atualizado '+(ts||'')):'desatualizado';
   if(ok)$('warn').classList.remove('show');
 }
+// ── TERMÔMETRO OPSCLOCK (projeção de expedição vs horário-meta) ──
+// ── OpsClock config por hub ──
+function lerOpsClock(station){
+  var padrao={AM:{ini:'06:00',fim:'10:30'},PM:{ini:'12:00',fim:'14:30'}};
+  try{
+    var raw=localStorage.getItem('opsclock_'+station);
+    if(raw){var o=JSON.parse(raw);if(o&&o.AM&&o.PM)return o;}
+  }catch(e){}
+  return padrao;
+}
+function salvarOpsClock(){
+  var station=(typeof STATION!=='undefined'&&STATION)?STATION:(localStorage.getItem('spx_station_id')||'default');
+  var cfg={
+    AM:{ini:document.getElementById('ops-am-ini').value||'06:00',fim:document.getElementById('ops-am-fim').value||'10:30'},
+    PM:{ini:document.getElementById('ops-pm-ini').value||'12:00',fim:document.getElementById('ops-pm-fim').value||'14:30'}
+  };
+  localStorage.setItem('opsclock_'+station,JSON.stringify(cfg));
+  // feedback visual + re-render
+  if(typeof toast==='function')toast('OpsClock salvo para este hub');
+  if(typeof _ultimoReport!=='undefined'&&_ultimoReport){var el=document.getElementById('opsclock');if(el)el.innerHTML=montarOpsClock(_ultimoReport);}
+}
+function carregarOpsClockCampos(){
+  var station=(typeof STATION!=='undefined'&&STATION)?STATION:(localStorage.getItem('spx_station_id')||'default');
+  var m=lerOpsClock(station);
+  var set=function(id,v){var e=document.getElementById(id);if(e)e.value=v;};
+  set('ops-am-ini',m.AM.ini);set('ops-am-fim',m.AM.fim);
+  set('ops-pm-ini',m.PM.ini);set('ops-pm-fim',m.PM.fim);
+}
+
+function montarOpsClock(d){
+  // OpsClock (horário-meta) configurável por hub, salvo no localStorage
+  var station=(typeof STATION!=='undefined'&&STATION)?STATION:(localStorage.getItem('spx_station_id')||'default');
+  var META=lerOpsClock(station);
+  var aud=d.auditoria||{};
+  var blocos=(d.blocos||[]).filter(function(b){return b.diff===0 && !b.cancelado;});
+  var agora=new Date();
+  var nowMin=agora.getHours()*60+agora.getMinutes();
+  function toMin(hhmm){var p=(hhmm||'').split(':');return p.length===2?(parseInt(p[0])*60+parseInt(p[1])):null;}
+
+  var cards=blocos.map(function(b){
+    var turno=b.label; // AM ou PM
+    if(turno!=='AM'&&turno!=='PM')return '';
+    var meta=META[turno]; if(!meta)return '';
+    var metaFimMin=toMin(meta.fim);
+    var metaIniMin=toMin(meta.ini);
+    // início real = primeiro bipado do turno (da auditoria); fallback = meta início
+    var janela=(turno==='AM')?aud.am:aud.pm;
+    var iniReal=(janela&&janela.primeiro)?janela.primeiro:meta.ini;
+    var iniRealMin=toMin(iniReal)||metaIniMin;
+    var total=b.total||0, exp=b.exp||0, pend=b.pend||0;
+    if(total===0)return '';
+
+    var pctExp=total>0?(exp/total*100):0;
+    // ritmo: rotas por minuto desde o início real
+    var decorrido=Math.max(1, nowMin-iniRealMin);
+    var ritmo=exp/decorrido; // rotas/min
+    // projeção: quando termina as pendentes no ritmo atual
+    var projFimMin, projStr, status, cor, msg;
+    var terminou=(pend<=0 && exp>=total);
+    if(terminou){
+      status='OK'; cor='#1E8449'; msg='Expedição concluída';
+      projFimMin=iniRealMin; // já acabou
+      projStr='—';
+    } else if(ritmo<=0){
+      status='SEM RITMO'; cor='#6C6963'; msg='Aguardando início';
+      projStr='--:--';
+      projFimMin=null;
+    } else {
+      projFimMin=nowMin+Math.ceil(pend/ritmo);
+      var ph=Math.floor(projFimMin/60)%24, pm=projFimMin%60;
+      projStr=String(ph).padStart(2,'0')+':'+String(pm).padStart(2,'0');
+      var folga=metaFimMin-projFimMin; // minutos de folga (+) ou atraso (-)
+      if(folga>=15){status='DENTRO';cor='#1E8449';msg='Vai terminar '+folga+'min antes do OpsClock';}
+      else if(folga>=0){status='NO LIMITE';cor='#B7791F';msg='Vai terminar em cima do OpsClock';}
+      else{status='FORA';cor='#C0392B';msg='Vai estourar '+Math.abs(folga)+'min o OpsClock';}
+    }
+
+    // progresso da janela (quanto do tempo-meta já passou)
+    var janelaTotal=metaFimMin-iniRealMin;
+    var tempoDecorr=Math.max(0,Math.min(janelaTotal,nowMin-iniRealMin));
+    var pctTempo=janelaTotal>0?(tempoDecorr/janelaTotal*100):0;
+
+    // termômetro: barra de expedição vs marcador de tempo
+    return '<div style="background:var(--card);border:1px solid var(--line);border-left:4px solid '+cor+';border-radius:12px;padding:14px 16px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
+        +'<div style="font-weight:800;font-size:14px">🎯 OpsClock '+turno+' <span style="font-weight:400;color:var(--muted);font-size:12px">· meta '+meta.ini+'→'+meta.fim+' · início real '+iniReal+'</span></div>'
+        +'<div style="font-weight:800;font-size:12px;color:'+cor+';background:'+cor+'18;padding:3px 10px;border-radius:8px">'+status+'</div>'
+      +'</div>'
+      +'<div style="position:relative;height:26px;background:#EFEDE8;border-radius:13px;overflow:hidden;margin-bottom:8px">'
+        +'<div style="position:absolute;left:0;top:0;height:100%;width:'+pctExp.toFixed(1)+'%;background:linear-gradient(90deg,'+cor+'AA,'+cor+');border-radius:13px;transition:width .5s"></div>'
+        +'<div style="position:absolute;left:'+pctTempo.toFixed(1)+'%;top:-2px;height:30px;width:2px;background:#1A1815" title="tempo decorrido"></div>'
+        +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:'+(pctExp>50?'#fff':'#1A1815')+'">'+exp+'/'+total+' ('+pctExp.toFixed(0)+'%)</div>'
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:6px">'
+        +'<span style="color:var(--muted)">⏱️ Projeção de término: <b style="color:'+cor+'">'+projStr+'</b></span>'
+        +'<span style="color:'+cor+';font-weight:700">'+msg+'</span>'
+      +'</div>'
+    +'</div>';
+  }).filter(Boolean).join('');
+
+  if(!cards)return '';
+  return '<div style="margin:14px 0">'+cards+'</div>';
+}
+
 function render(d){
   var blocos=d.blocos||[];
   var ativos=blocos.filter(b=>!b.cancelado);
@@ -1060,6 +1183,11 @@ linhaInicio+' | Snapshot: '+snapHora+'\n \n'+
     '<div class="stat"><div class="lab">Bancadas</div><div class="val">'+(d.bancadas!=null&&typeof d.bancadas==='object'?d.bancadas.ocupadas:'—')+'</div>'+(d.bancadas!=null&&typeof d.bancadas==='object'?'<div class="lab">'+d.bancadas.disponiveis+' disp.</div>':'')+'</div>'+
     '<div class="stat"><div class="lab">Fila</div><div class="val">'+(d.fila!=null?d.fila:'—')+'</div></div>'+
     '<div class="stat"><div class="lab">Veículos hoje</div><div class="val">'+(disp.hoje!=null?disp.hoje:'—')+'</div>'+(disp.amanha!=null?'<div class="lab">amanhã: '+disp.amanha+'</div>':'')+'</div>';
+  window._ultimoReport=d;
+  // Termômetro OpsClock
+  var opsHtml=montarOpsClock(d);
+  var opsEl=$('opsclock'); if(opsEl)opsEl.innerHTML=opsHtml;
+  carregarOpsClockCampos();
   var t='<table><thead><tr><th>Bloco</th><th class="n">Início</th><th class="n">Total</th><th class="n">Exp.</th><th class="n">Pend.</th><th class="n">NS</th></tr></thead><tbody>';
   blocos.forEach(function(b){
     if(b.cancelado){t+='<tr><td><b>'+b.label+'</b></td><td class="n" colspan="5" style="color:#C0392B;text-align:center">SEM EXPEDIÇÃO HOJE</td></tr>';return;}
@@ -1125,6 +1253,11 @@ function renderGuiche(d){
   var queue=d.queueList||[];
   var guichesAPI=d.guiches||[];
   if(d.hub)_hubNome=d.hub;
+  // captura finalizados (ended_total) e giro de docagem do SPX
+  if(d.bancadas&&typeof d.bancadas==='object'){
+    if(d.bancadas.finalizados!=null)window._finalizados=d.bancadas.finalizados;
+    if(d.bancadas.giroDocagemSeg!=null)window._giroDocagemSeg=d.bancadas.giroDocagemSeg;
+  }
   // Fila de chamada = Atribuídos SEM mesa alocada (os com mesa viram card)
   filaG=queue.filter(function(m){return m.status==='Atribuído' && !(m.docaAloc||'').trim();});
   _pend=queue.filter(function(m){return m.status==='Pendente';}).length;
@@ -1253,14 +1386,17 @@ function renderGPills(){
 }
 function renderGKPIs(){
   var now=Date.now();
-  var todos=[];Object.values(_hist).forEach(a=>a.forEach(h=>todos.push(h.durMin)));
-  var med=todos.length?Math.round(todos.reduce((a,b)=>a+b,0)/todos.length):null;
+  // GIRO MÉDIO = tempo de docagem (chamado→ocupou), vindo do SPX (waiting_time)
+  var giroDoc=(window._giroDocagemSeg!=null)?Math.round(window._giroDocagemSeg/60):null;
+  // T. MÉDIO ATUAL = tempo médio que as mesas estão carregando agora
   var ativa=g50.filter(g=>g.s==='carregando'&&g.t);
   var tmed=ativa.length?Math.round(ativa.reduce((a,g)=>a+(now-g.t),0)/ativa.length/60000):null;
   var nOcio=g50.filter(g=>{var om=g.tOcioBase?Math.floor((now-g.tOcioBase)/60000):Math.floor((g.tOcio||0)/60);return (g.s==='livre'||!g.pl)&&g.mesa&&om>=SLA_OCIO;}).length;
-  $('k-giro').textContent=med!==null?med+'m':'--';
+  // FINALIZADOS = total de carros expedidos no dia (ended_total do SPX)
+  var finalizados=(window._finalizados!=null)?window._finalizados:_fin;
+  $('k-giro').textContent=giroDoc!==null?giroDoc+'m':'--';
   $('k-tmed').textContent=tmed!==null?tmed+'m':'--';
-  $('k-fin').textContent=_fin;$('k-fins').textContent=_ciclos+' ciclos';
+  $('k-fin').textContent=finalizados;$('k-fins').textContent='carros expedidos';
   $('k-cap').textContent=g50.filter(g=>g.s!=='livre'||g.mesa).length;
   $('k-ocio').textContent=nOcio||'0';
   $('k-sla').textContent=SLA_CAR;
@@ -1374,7 +1510,7 @@ function montarAuditDataDaAPI(targets){
         const revalidOp=t.revalOp?t.revalOp.replace(/\[.*?\]/,'').trim():'';
         // _startRaw como STRING de data (igual o CSV), pra renderPorHora/etc funcionarem
         const startStr=t.start?new Date(t.start*1000).toISOString().replace('T',' ').substring(0,19):'';
-        auditData.push({name,bench:corridor,time:diff,missorted,missing,packages,street,status,_startRaw:startStr,_startTs:t.start*1000,_atId:t.at,revalidCount,revalidOp});
+        auditData.push({name,bench:corridor,time:diff,missorted,missing,packages,street,status,_startRaw:startStr,_startTs:t.start*1000,_endTs:t.end*1000,_turno:t.turno||'AM',_atId:t.at,revalidCount,revalidOp});
         ops.add(name);benches.add(corridor);
         aiStats.totalMissorted+=missorted;aiStats.totalMissing+=missing;
         aiStats.totalPackages+=packages;aiStats.totalRoutes++;
@@ -1386,7 +1522,7 @@ function montarAuditDataDaAPI(targets){
       }
     }
   });
-  const be=document.getElementById('inBenches');if(be)be.value=benches.size;
+  const be=document.getElementById('inBenches');if(be)be.value=ops.size;
   const oe=document.getElementById('inOps');if(oe)oe.value=ops.size;
   const te=document.getElementById('inTotal');if(te)te.value=auditData.length;
 }
@@ -1401,6 +1537,8 @@ function rtFetch(){
       return;
     }
     montarAuditDataDaAPI(d.targets);
+    window._rotasPlanejado=d.rotasPlanejado||0;
+    window._rotasExpedido=d.rotasExpedido||0;
     rtSetStatus('🟢 AO VIVO · '+auditData.length+' registros · '+(d.updated||'')+(d.hub?' · '+d.hub:''));
     if(typeof syncAndShow==='function')syncAndShow();
     try{
@@ -1453,6 +1591,14 @@ function syncAndShow(){
   document.getElementById('outBenches').innerText=document.getElementById('inBenches').value;
   document.getElementById('outOps').innerText=document.getElementById('inOps').value;
   document.getElementById('outTotalD').innerText=total;
+  // Falta Validar = planejado (rotas do dia) − já auditado
+  const faltaEl=document.getElementById('outFaltaValidar');
+  if(faltaEl){
+    const plan=window._rotasPlanejado||0;
+    const falta=plan>0?Math.max(0,plan-auditData.length):null;
+    faltaEl.innerText=(falta!==null)?falta:'--';
+    faltaEl.style.color=falta>0?'var(--warning)':'var(--success)';
+  }
   const pe=document.getElementById('outSlaPerc');
   pe.innerText=perc+'%';
   pe.style.color=perc>=90?'var(--success)':'var(--danger)';
@@ -1477,7 +1623,7 @@ function updateKpis(){
   const totalPkg=aiStats.totalPackages||0;
   const totalErr=(aiStats.totalMissorted||0)+(aiStats.totalMissing||0);
   const accuracy=totalPkg>0?(((totalPkg-totalErr)/totalPkg)*100).toFixed(1):0;
-  const routePct=aiStats.totalRoutes>0?((aiStats.validatedRoutes/aiStats.totalRoutes)*100).toFixed(1):0;
+  const routePct=(window._rotasPlanejado>0)?((window._rotasExpedido/window._rotasPlanejado)*100).toFixed(1):(aiStats.totalRoutes>0?((aiStats.validatedRoutes/aiStats.totalRoutes)*100).toFixed(1):0);
   const avgTime=auditData.length>0?(auditData.reduce((s,d)=>s+d.time,0)/auditData.length).toFixed(1):0;
   const accEl=document.getElementById('kpiAccuracy');
   accEl.innerText=accuracy+'%';
@@ -1637,112 +1783,83 @@ function gaugeArc(value,max,color){
 
 function renderPorHora(){
   if(auditData.length===0){
-    document.getElementById('hourCards').innerHTML='<p style="color:var(--text-2);font-size:13px;padding:24px;text-align:center">Aguardando CSV...</p>';
+    document.getElementById('hourCards').innerHTML='<p style="color:var(--text-2);font-size:13px;padding:24px;text-align:center">Aguardando dados...</p>';
     document.getElementById('totalTurnoCard').innerHTML='';
     return;
   }
+  const fmtT=ms=>{const d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 
-  // Totais gerais do turno
-  const allStarts=auditData.map(d=>new Date(d._startRaw).getTime()).filter(t=>!isNaN(t));
-  const allEnds=auditData.map(d=>new Date(d._startRaw.replace(/Validation Start/,'').trim()).getTime());
-  // pega start e end reais do turno via _startRaw e calculando diff
-  const turnoStart=new Date(Math.min(...allStarts));
-  // Fim real = maior valor de (start + duração) entre todas as gaiolas
-  // Filtra gaiolas com duração absurda (> 60min) para não distorcer o fim
-  const turnoEndMs=Math.max(...auditData.map(d=>{
-    const s=new Date(d._startRaw).getTime();
-    if(isNaN(s)) return 0;
-    const dur=Math.min(d.time, 60); // limita a 60min para evitar distorção
-    return s+dur*60000;
-  }));
-  const turnoEnd=new Date(turnoEndMs);
-  const duracaoMs=turnoEndMs-turnoStart.getTime();
-  const duracaoH=Math.floor(duracaoMs/3600000);
-  const duracaoM=Math.floor((duracaoMs%3600000)/60000);
-  const duracaoStr=duracaoH>0?duracaoH+'h '+duracaoM+'m':duracaoM+'m';
-  const fmtT=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-  const totalPacotes=aiStats.totalPackages||0;
-  const totalCarros=new Set(auditData.map(d=>d._atId)).size;
-  const totalEventos=auditData.map(d=>({start:new Date(d._startRaw).getTime(),end:new Date(d._startRaw).getTime()+d.time*60000})).filter(e=>!isNaN(e.start));
-  const totalBancadas=(function(){
-    const pts=[];totalEventos.forEach(e=>{pts.push({t:e.start,v:1});pts.push({t:e.end,v:-1});});
-    pts.sort((a,b)=>a.t-b.t);let c=0,p=0;pts.forEach(x=>{c+=x.v;if(c>p)p=c;});return p;
-  })();
-  const prodMedia=totalBancadas>0?Math.round(totalPacotes/totalBancadas):0;
+  // separa por turno (AM = 1ª tarefa, PM = resto — vem do backend em _turno)
+  function blocoTurno(items, turnoLabel, cor){
+    if(!items.length)return '';
+    const starts=items.map(d=>d._startTs).filter(t=>t>0);
+    const ends=items.map(d=>d._endTs||d._startTs+d.time*60000).filter(t=>t>0);
+    if(!starts.length)return '';
+    const ini=Math.min(...starts);
+    const fim=Math.max(...ends);
+    const dur=fim-ini;
+    const durH=Math.floor(dur/3600000), durM=Math.floor((dur%3600000)/60000);
+    const durStr=durH>0?durH+'h '+durM+'m':durM+'m';
+    const pacotes=items.reduce((s,d)=>s+(d.packages||0),0);
+    const carros=new Set(items.map(d=>d._atId)).size;
+    // pico de bancadas (operadores simultâneos)
+    const evts=items.map(d=>({s:d._startTs,e:d._endTs||d._startTs+d.time*60000}));
+    const pts=[];evts.forEach(e=>{pts.push({t:e.s,v:1});pts.push({t:e.e,v:-1});});
+    pts.sort((a,b)=>a.t-b.t);let c=0,pico=0;pts.forEach(x=>{c+=x.v;if(c>pico)pico=c;});
+    const prod=pico>0?Math.round(pacotes/pico):0;
 
-  document.getElementById('totalTurnoCard').innerHTML=
-    '<div class="hour-block" style="background:linear-gradient(135deg,#fff5f3,#fff);border-color:rgba(238,77,45,0.25)">'
-    +'<div class="hour-label" style="font-size:15px;font-weight:800">'
-      +'<i class="fa-solid fa-flag-checkered" style="color:var(--orange)"></i> TOTAL DO TURNO'
-      +'<span style="font-size:12px;color:var(--text-2);font-weight:500;margin-left:4px">'
-        +fmtT(turnoStart)+' → '+fmtT(turnoEnd)
-        +' &nbsp;·&nbsp; <i class="fa-solid fa-stopwatch"></i> '+duracaoStr
-      +'</span>'
-    +'</div>'
-    +'<div class="gauges-row">'
-      +'<div class="gauge-wrap">'+gaugeArc(1,1,'#EE4D2D')+'<div class="gauge-val" style="color:#EE4D2D">'+totalPacotes.toLocaleString('pt-BR')+'</div><div class="gauge-lbl">Pacotes expedidos</div></div>'
-      +'<div class="gauge-wrap">'+gaugeArc(1,1,'#1d4ed8')+'<div class="gauge-val" style="color:#1d4ed8">'+totalCarros+'</div><div class="gauge-lbl">Carros expedidos</div></div>'
-      +'<div class="gauge-wrap">'+gaugeArc(1,1,'#7c3aed')+'<div class="gauge-val" style="color:#7c3aed">'+totalBancadas+'</div><div class="gauge-lbl">Bancadas ativas</div></div>'
-      +'<div class="gauge-wrap">'+gaugeArc(1,1,'#15803d')+'<div class="gauge-val" style="color:#15803d">'+prodMedia+'</div><div class="gauge-lbl">Média produtividade</div></div>'
-    +'</div>'
-    +'</div>';
+    // blocos de 60min dentro do turno
+    const blocos={};
+    items.forEach(d=>{
+      if(!d._startTs)return;
+      const bloco=Math.floor((d._startTs-ini)/3600000);
+      if(!blocos[bloco])blocos[bloco]={pacotes:0,carros:new Set(),evts:[],startTime:ini+bloco*3600000};
+      blocos[bloco].pacotes+=d.packages||0;
+      blocos[bloco].carros.add(d._atId);
+      blocos[bloco].evts.push({s:d._startTs,e:d._endTs||d._startTs+d.time*60000});
+    });
+    const bKeys=Object.keys(blocos).map(Number).sort((a,b)=>a-b);
+    function pico2(evts){const p=[];evts.forEach(e=>{p.push({t:e.s,v:1});p.push({t:e.e,v:-1});});p.sort((a,b)=>a.t-b.t);let c=0,pk=0;p.forEach(x=>{c+=x.v;if(c>pk)pk=c;});return pk;}
+    bKeys.forEach(b=>{blocos[b].bancadas=pico2(blocos[b].evts);});
+    const maxP=Math.max(1,...bKeys.map(b=>blocos[b].pacotes));
+    const maxC=Math.max(1,...bKeys.map(b=>blocos[b].carros.size));
+    const maxB=Math.max(1,...bKeys.map(b=>blocos[b].bancadas));
+    const maxPr=Math.max(1,...bKeys.map(b=>{const o=blocos[b];return o.bancadas>0?Math.round(o.pacotes/o.bancadas):0;}));
 
-  // Encontra o início real do turno e agrupa em blocos de 60min
-  const starts=auditData.map(d=>new Date(d._startRaw).getTime()).filter(t=>!isNaN(t));
-  const turnoInicio=new Date(Math.min(...starts));
-  // Ajusta para o minuto exato de início (ex: 04:45)
-  const blocos={};
-  auditData.forEach(d=>{
-    const t=new Date(d._startRaw).getTime();
-    if(isNaN(t)) return;
-    const minFromStart=Math.floor((t-turnoInicio.getTime())/60000);
-    const bloco=Math.floor(minFromStart/60); // bloco 0, 1, 2...
-    if(!blocos[bloco]) blocos[bloco]={pacotes:0,carros:new Set(),eventos:[],startTime:new Date(turnoInicio.getTime()+bloco*3600000)};
-    blocos[bloco].pacotes+=d.packages||0;
-    blocos[bloco].carros.add(d._atId||'');
-    // guarda início e fim de cada gaiola para calcular pico simultâneo
-    const gStart=new Date(d._startRaw).getTime();
-    const gEnd=gStart+(d.time*60000);
-    blocos[bloco].eventos.push({start:gStart,end:gEnd});
-  });
-
-  const bKeys=Object.keys(blocos).map(Number).sort();
-  const maxPacotes=Math.max(...bKeys.map(b=>blocos[b].pacotes));
-  const maxCarros=Math.max(...bKeys.map(b=>blocos[b].carros.size));
-  // calcula pico simultâneo por bloco (sweep line)
-  function picoBancadas(eventos){
-    if(!eventos||eventos.length===0) return 0;
-    const pontos=[];
-    eventos.forEach(e=>{pontos.push({t:e.start,v:1});pontos.push({t:e.end,v:-1});});
-    pontos.sort((a,b)=>a.t-b.t);
-    let cur=0,pico=0;
-    pontos.forEach(p=>{cur+=p.v;if(cur>pico)pico=cur;});
-    return pico;
+    let html='<div class="hour-block" style="background:linear-gradient(135deg,'+cor.bg+',#fff);border-color:'+cor.border+';margin-bottom:14px">'
+      +'<div class="hour-label" style="font-size:15px;font-weight:800">'
+      +'<i class="fa-solid fa-flag-checkered" style="color:'+cor.main+'"></i> TURNO '+turnoLabel
+      +'<span style="font-size:12px;color:var(--text-2);font-weight:500;margin-left:6px">'+fmtT(ini)+' → '+fmtT(fim)+' &nbsp;·&nbsp; <i class="fa-solid fa-stopwatch"></i> '+durStr+'</span></div>'
+      +'<div class="gauges-row">'
+      +'<div class="gauge-wrap">'+gaugeArc(1,1,'#EE4D2D')+'<div class="gauge-val" style="color:#EE4D2D">'+pacotes.toLocaleString('pt-BR')+'</div><div class="gauge-lbl">Pacotes</div></div>'
+      +'<div class="gauge-wrap">'+gaugeArc(1,1,'#1d4ed8')+'<div class="gauge-val" style="color:#1d4ed8">'+carros+'</div><div class="gauge-lbl">Carros</div></div>'
+      +'<div class="gauge-wrap">'+gaugeArc(1,1,'#7c3aed')+'<div class="gauge-val" style="color:#7c3aed">'+pico+'</div><div class="gauge-lbl">Bancadas ativas</div></div>'
+      +'<div class="gauge-wrap">'+gaugeArc(1,1,'#15803d')+'<div class="gauge-val" style="color:#15803d">'+prod+'</div><div class="gauge-lbl">Média produtividade</div></div>'
+      +'</div></div>';
+    // blocos horários
+    html+=bKeys.map(b=>{
+      const d=blocos[b];const carros=d.carros.size;const banc=d.bancadas;const prd=banc>0?Math.round(d.pacotes/banc):0;
+      const iL=fmtT(d.startTime), fL=fmtT(d.startTime+3600000);
+      return '<div class="hour-block">'
+        +'<div class="hour-label"><i class="fa-solid fa-clock"></i> '+iL+' — '+fL+' <span style="font-size:11px;color:var(--text-3)">('+turnoLabel+')</span></div>'
+        +'<div class="gauges-row">'
+        +'<div class="gauge-wrap">'+gaugeArc(d.pacotes,maxP,'#EE4D2D')+'<div class="gauge-val" style="color:#EE4D2D">'+d.pacotes.toLocaleString('pt-BR')+'</div><div class="gauge-lbl">Pacotes</div></div>'
+        +'<div class="gauge-wrap">'+gaugeArc(carros,maxC,'#1d4ed8')+'<div class="gauge-val" style="color:#1d4ed8">'+carros+'</div><div class="gauge-lbl">Carros</div></div>'
+        +'<div class="gauge-wrap">'+gaugeArc(banc,maxB,'#7c3aed')+'<div class="gauge-val" style="color:#7c3aed">'+banc+'</div><div class="gauge-lbl">Bancadas ativas</div></div>'
+        +'<div class="gauge-wrap">'+gaugeArc(prd,maxPr,'#15803d')+'<div class="gauge-val" style="color:#15803d">'+prd+'</div><div class="gauge-lbl">Média produtividade</div></div>'
+        +'</div></div>';
+    }).join('');
+    return html;
   }
 
-  bKeys.forEach(b=>{ blocos[b].bancadas=picoBancadas(blocos[b].eventos); });
-  const maxBancadas=Math.max(...bKeys.map(b=>blocos[b].bancadas));
-  const maxProd=Math.max(...bKeys.map(b=>{const o=blocos[b];return o.bancadas>0?Math.round(o.pacotes/o.bancadas):0;}));
-
-  const fmt=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-
-  document.getElementById('hourCards').innerHTML=bKeys.map(b=>{
-    const d=blocos[b];
-    const carros=d.carros.size;
-    const bancadas=d.bancadas;
-    const prod=bancadas>0?Math.round(d.pacotes/bancadas):0;
-    const inicioLabel=fmt(d.startTime);
-    const fimDate=new Date(d.startTime.getTime()+3600000);
-    const fimLabel=fmt(fimDate);
-    return '<div class="hour-block">'
-      +'<div class="hour-label"><i class="fa-solid fa-clock"></i> '+inicioLabel+' — '+fimLabel+'</div>'
-      +'<div class="gauges-row">'
-        +'<div class="gauge-wrap">'+gaugeArc(d.pacotes,maxPacotes,'#EE4D2D')+'<div class="gauge-val" style="color:#EE4D2D">'+d.pacotes.toLocaleString('pt-BR')+'</div><div class="gauge-lbl">Pacotes expedidos</div></div>'
-        +'<div class="gauge-wrap">'+gaugeArc(carros,maxCarros,'#1d4ed8')+'<div class="gauge-val" style="color:#1d4ed8">'+carros+'</div><div class="gauge-lbl">Carros expedidos</div></div>'
-        +'<div class="gauge-wrap">'+gaugeArc(bancadas,maxBancadas,'#7c3aed')+'<div class="gauge-val" style="color:#7c3aed">'+bancadas+'</div><div class="gauge-lbl">Bancadas ativas</div></div>'
-        +'<div class="gauge-wrap">'+gaugeArc(prod,maxProd,'#15803d')+'<div class="gauge-val" style="color:#15803d">'+prod+'</div><div class="gauge-lbl">Média produtividade</div></div>'
-      +'</div></div>';
-  }).join('');
+  const amItems=auditData.filter(d=>d._turno==='AM');
+  const pmItems=auditData.filter(d=>d._turno==='PM');
+  document.getElementById('totalTurnoCard').innerHTML='';
+  let out='';
+  out+=blocoTurno(amItems,'AM — Manhã',{main:'#EE4D2D',bg:'#fff5f3',border:'rgba(238,77,45,0.25)'});
+  out+=blocoTurno(pmItems,'PM — Tarde/Noite',{main:'#1d4ed8',bg:'#eff6ff',border:'rgba(29,78,216,0.25)'});
+  if(!out)out='<p style="color:var(--text-2);font-size:13px;padding:24px;text-align:center">Sem dados de turno.</p>';
+  document.getElementById('hourCards').innerHTML=out;
 }
 
 // ─── ALERTAS ───
