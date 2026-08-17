@@ -384,15 +384,15 @@
     <button class="btn spx" id="copy">📋 Copiar</button>
     <button class="btn ghost" id="wa">WhatsApp</button>
     <button class="btn ghost" id="refresh">↻ Atualizar agora</button>
-    <button class="btn ghost" id="toggleCfg">🔑 Cookie</button>
+    <button class="btn ghost" id="toggleCfg">🔑 Chave de acesso</button>
     <button class="btn ghost" id="toggleUrl">⚙️ URL</button>
   </div>
   <div class="cfg" id="cfg">
-    <h3>Atualizar cookie do SPX</h3>
-    <p style="font-size:12px;color:var(--muted)">Quando o report parar de atualizar, cole aqui os cookies do SPX.</p>
+    <h3>Atualizar chave de acesso</h3>
+    <p style="font-size:12px;color:var(--muted)">Quando o report parar de atualizar, insira aqui a chave de acesso do sistema.</p>
     <textarea id="cookieIn" placeholder="csrftoken=...; fms_user_skey=...; SPC_T_ID=...; ..."></textarea>
     <div class="row">
-      <button class="btn spx" id="sendCookie">Enviar cookie</button>
+      <button class="btn spx" id="sendCookie">Enviar chave</button>
       <span class="msg" id="cookieMsg"></span>
     </div>
   </div>
@@ -1017,7 +1017,7 @@ function fetchReport(){
 function handleErr(code){
   setLive(false);
   const w=$('warn');w.classList.add('show');
-  if(code==='cookie_ausente_ou_incompleto'){w.innerHTML='⚠️ <b>Cookie expirado ou ausente.</b> Toque em 🔑 Cookie e cole um cookie novo do SPX.';$('cfg').classList.add('show');}
+  if(code==='cookie_ausente_ou_incompleto'){w.innerHTML='⚠️ <b>Chave de acesso expirada ou ausente.</b> Toque em 🔑 Cookie e insira uma nova chave de acesso.';$('cfg').classList.add('show');}
   else if(code==='sem_conexao'){w.innerHTML='⚠️ Sem conexão com o servidor. Verifique a URL do Web App.';}
   else{w.innerHTML='⚠️ Erro: '+code;}
   setGStatus('ERRO','#dc2626');
@@ -1213,7 +1213,7 @@ $('wa').onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent($('rep
 $('sendCookie').onclick=function(){
   var c=$('cookieIn').value.trim();
   if(!API){$('cookieMsg').textContent='Configure a URL primeiro.';$('cookieMsg').className='msg err';return;}
-  if(!c){$('cookieMsg').textContent='Cole o cookie.';$('cookieMsg').className='msg err';return;}
+  if(!c){$('cookieMsg').textContent='Insira o cookie.';$('cookieMsg').className='msg err';return;}
   $('cookieMsg').textContent='Enviando…';$('cookieMsg').className='msg';
   fetch(API,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({cookie:c,station:STATION})}).then(function(){
     $('cookieMsg').textContent='Cookie enviado! Testando…';$('cookieMsg').className='msg';
@@ -1241,7 +1241,7 @@ function enviarCookieJSONP(c){
   };
   var s=document.createElement('script');
   s.src=apiUrl('action=savecookie&cookie='+encodeURIComponent(c)+'&callback='+cbName);
-  s.onerror=function(){delete window[cbName];$('cookieMsg').textContent='⚠ Falhou. Cole o cookie direto na função meuCookie() do editor Apps Script.';$('cookieMsg').className='msg err';};
+  s.onerror=function(){delete window[cbName];$('cookieMsg').textContent='⚠ Falhou. Insira o cookie direto na função meuCookie() do editor Apps Script.';$('cookieMsg').className='msg err';};
   document.head.appendChild(s);
 }
 // ── GUICHÊ ────────────────────────────────────────────────────
