@@ -364,6 +364,7 @@
   <div class="tab" id="tab-guiche" onclick="abrirTab('guiche')">🏭 Guichê de Carregamento</div>
   <div class="tab" id="tab-top10" onclick="abrirTab('top10')">🎯 Auditoria</div>
   <div class="tab" id="tab-ofensores" onclick="abrirTab('ofensores')">🚫 Ofensores</div>
+  <div class="tab" id="tab-clusters" onclick="abrirTab('clusters')">🚚 Clusters</div>
 </div>
 <!-- ══ ABA REPORT ══ -->
 <div class="page active" id="page-report">
@@ -933,6 +934,17 @@
   </div>
 </div>
 </div>
+<!-- ══ ABA CLUSTERS ══ -->
+<div class="page" id="page-clusters">
+<div style="max-width:1100px;margin:0 auto;padding:18px 16px 60px">
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--ink);padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div><h1 style="font-size:17px">🚚 Carregamento por Cluster <small id="cluHub" style="display:block;font-size:11px;color:var(--muted);font-weight:600">% e janela de carregamento</small></h1></div>
+    <div class="live"><span class="dot" id="cluDot"></span><span id="cluLive">conectando…</span></div>
+  </div>
+  <div class="grid" id="cluKpis" style="margin-bottom:20px"></div>
+  <div id="clusterBars"><p style="color:var(--muted);font-size:13px;padding:16px;text-align:center">Carregando clusters…</p></div>
+</div>
+</div>
 <div class="mh" id="mh" onclick="if(event.target===this)fecharHist()">
   <div class="mhb">
     <h3>📊 Histórico por Mesa <button onclick="fecharHist()">×</button></h3>
@@ -972,6 +984,10 @@ function abrirTab(t){
   if(t==='ofensores'){
     var apiO=API||localStorage.getItem('spx_report_api_url')||'';
     if(apiO)fetchOfensores();
+  }
+  if(t==='clusters'){
+    var apiC=API||localStorage.getItem('spx_report_api_url')||'';
+    if(apiC && window.__fetchClusters)window.__fetchClusters();
   }
 }
 // ── REPORT ────────────────────────────────────────────────────
@@ -2803,6 +2819,70 @@ function initTop10API(api, station){
   if(station){RT_STATION=String(station);localStorage.setItem(RT_LS_STATION,String(station));}
   if(RT_API){rtStart();try{var db=document.querySelector('#top10-scope .nav button');if(db)showTab('dash',db);}catch(e){}}
 }
+// ── CARREGAMENTO POR CLUSTER ──
+function fetchClusters(){
+  if(!RT_API)RT_API=localStorage.getItem('spx_report_api_url')||'';
+  if(!RT_STATION)RT_STATION=localStorage.getItem('spx_station_id')||'';
+  if(!RT_API){var l=document.getElementById('cluLive');if(l)l.textContent='sem API';return;}
+  var cbName='_clu_'+Date.now();
+  window[cbName]=function(d){
+    delete window[cbName];
+    var dot=document.getElementById('cluDot'), live=document.getElementById('cluLive');
+    if(!d||!d.ok||!d.clusters){
+      if(dot)dot.classList.add('stale');
+      if(live)live.textContent=(d&&d.erro==='cookie_ausente_ou_incompleto')?'chave expirada':'sem dados';
+      var el=document.getElementById('clusterBars');
+      if(el)el.innerHTML='<p style="color:var(--muted);font-size:13px;padding:16px;text-align:center">Sem dados de cluster.</p>';
+      return;
+    }
+    renderClusters(d);
+  };
+  var s=document.createElement('script');
+  s.src=RT_API+'?action=clusters&callback='+cbName+(RT_STATION?'&station='+RT_STATION:'')+'&t='+Date.now();
+  s.onerror=function(){delete window[cbName];var dot=document.getElementById('cluDot');if(dot)dot.classList.add('stale');};
+  document.head.appendChild(s);
+  setTimeout(function(){try{document.head.removeChild(s);}catch(e){}},30000);
+}
+function renderClusters(d){
+  var el=document.getElementById('clusterBars');
+  if(!el)return;
+  var dot=document.getElementById('cluDot'), live=document.getElementById('cluLive'), hub=document.getElementById('cluHub');
+  if(dot)dot.classList.remove('stale');
+  if(live)live.textContent='atualizado '+(d.updated||'');
+  if(hub&&d.hub)hub.textContent=d.hub+' · % e janela de carregamento';
+  var cls=d.clusters||[];
+  // KPIs
+  var kel=document.getElementById('cluKpis');
+  if(kel){
+    var pctGeral=d.totalRotas>0?Math.round(d.totalSaiu/d.totalRotas*100):0;
+    var completos=cls.filter(function(c){return c.pct>=100;}).length;
+    var atrasados=cls.filter(function(c){return c.pct<50;}).length;
+    kel.innerHTML=
+      '<div class="stat"><div class="lab">Rotas Total</div><div class="val">'+d.totalRotas+'</div></div>'+
+      '<div class="stat"><div class="lab">Já Saíram</div><div class="val" style="color:var(--ok)">'+d.totalSaiu+'</div></div>'+
+      '<div class="stat"><div class="lab">% Geral</div><div class="val" style="color:'+(pctGeral>=80?'var(--ok)':pctGeral>=50?'var(--wait)':'var(--miss)')+'">'+pctGeral+'%</div></div>'+
+      '<div class="stat"><div class="lab">Clusters</div><div class="val">'+cls.length+'</div></div>'+
+      '<div class="stat"><div class="lab">Completos</div><div class="val" style="color:var(--ok)">'+completos+'</div></div>'+
+      '<div class="stat"><div class="lab">Abaixo 50%</div><div class="val" style="color:var(--miss)">'+atrasados+'</div></div>';
+  }
+  if(!cls.length){el.innerHTML='<p style="color:var(--muted);font-size:13px;padding:16px;text-align:center">Sem clusters.</p>';return;}
+  var h='';
+  cls.forEach(function(c){
+    var cor=c.pct>=80?'#15803d':c.pct>=50?'#d97706':'#dc2626';
+    var jan=(c.inicio&&c.fim)?(c.inicio+'→'+c.fim+(c.duracaoMin?' ('+(c.duracaoMin>=60?Math.floor(c.duracaoMin/60)+'h'+(c.duracaoMin%60)+'m':c.duracaoMin+'m')+')':'')):'—';
+    h+='<div style="margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;flex-wrap:wrap;gap:4px">'
+        +'<span style="font-weight:800">'+c.cluster.replace(/^Curitiba_/,'')+'</span>'
+        +'<span style="color:var(--muted);font-size:12px">'+c.saiu+'/'+c.total+' · <span style="color:'+cor+';font-weight:800">'+c.pct+'%</span> · ⏱️ '+jan+'</span>'
+      +'</div>'
+      +'<div style="height:20px;background:#EFEDE8;border-radius:10px;overflow:hidden">'
+        +'<div style="height:100%;width:'+c.pct+'%;background:linear-gradient(90deg,'+cor+'AA,'+cor+');border-radius:10px;transition:width .5s;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:11px;font-weight:800">'+(c.pct>=15?c.pct+'%':'')+'</div>'
+      +'</div>'
+    +'</div>';
+  });
+  el.innerHTML=h;
+}
+window.__fetchClusters=fetchClusters;
 window.__initTop10API=initTop10API;
 // expõe funções do Top10 chamadas por onclick no HTML (estão dentro do IIFE)
 window.showTab=showTab;
