@@ -352,6 +352,7 @@
 #top10-scope .delta-down{background:var(--danger-bg);color:var(--danger);}
 #top10-scope .delta-eq{background:var(--surface3);color:var(--text-2);}
 #top10-scope #t10cfg, #top10-scope #compare, #top10-scope #history{display:none!important}
+  .ofe-fil.active{background:var(--spx)!important;color:#fff!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -898,6 +899,18 @@
   <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--ink);padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:10px">
     <div><h1 style="font-size:17px">🚫 Ofensores <small id="ofeHub" style="display:block;font-size:11px;color:var(--muted);font-weight:600">recusas e timeout de aceite</small></h1></div>
     <div class="live"><span class="dot" id="ofeDot"></span><span id="ofeLive">conectando…</span></div>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+    <div style="display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:3px">
+      <button class="ofe-fil ofe-per active" data-per="hoje" onclick="ofeSetPeriodo('hoje',this)" style="border:none;background:transparent;padding:6px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer">Hoje</button>
+      <button class="ofe-fil ofe-per" data-per="semana" onclick="ofeSetPeriodo('semana',this)" style="border:none;background:transparent;padding:6px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer">Semana</button>
+    </div>
+    <div style="display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:3px">
+      <button class="ofe-fil ofe-trn active" data-trn="todos" onclick="ofeSetTurno('todos',this)" style="border:none;background:transparent;padding:6px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer">Todos</button>
+      <button class="ofe-fil ofe-trn" data-trn="AM" onclick="ofeSetTurno('AM',this)" style="border:none;background:transparent;padding:6px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer">🌅 AM</button>
+      <button class="ofe-fil ofe-trn" data-trn="PM" onclick="ofeSetTurno('PM',this)" style="border:none;background:transparent;padding:6px 14px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer">🌙 PM</button>
+    </div>
+    <span style="font-size:11px;color:var(--muted)">AM: call-up 18h–04h · PM: call-up 04h–18h</span>
   </div>
   <div class="grid" id="ofeKpis" style="margin-bottom:20px"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px" id="ofeGrid">
@@ -2805,7 +2818,19 @@ window.fecharHist=(typeof fecharHist!=='undefined')?fecharHist:function(){};
 })();
 
 // ── OFENSORES ──────────────────────────────────────────────
-var ofeTimer=null;
+var ofeTimer=null, ofePeriodo='hoje', ofeTurno='todos';
+function ofeSetPeriodo(p,el){
+  ofePeriodo=p;
+  document.querySelectorAll('.ofe-per').forEach(function(b){b.classList.remove('active');});
+  el.classList.add('active');
+  fetchOfensores();
+}
+function ofeSetTurno(t,el){
+  ofeTurno=t;
+  document.querySelectorAll('.ofe-trn').forEach(function(b){b.classList.remove('active');});
+  el.classList.add('active');
+  fetchOfensores();
+}
 function fetchOfensores(){
   var apiO=API||localStorage.getItem('spx_report_api_url')||'';
   var stO=STATION||localStorage.getItem('spx_station_id')||'';
@@ -2822,17 +2847,19 @@ function fetchOfensores(){
     renderOfensores(d);
   };
   var s=document.createElement('script');
-  s.src=apiO+'?action=ofensores&callback='+cbName+(stO?'&station='+stO:'')+'&t='+Date.now();
+  s.src=apiO+'?action=ofensores&periodo='+ofePeriodo+'&turno='+ofeTurno+'&callback='+cbName+(stO?'&station='+stO:'')+'&t='+Date.now();
   s.onerror=function(){delete window[cbName];$('ofeDot').classList.add('stale');$('ofeLive').textContent='sem conexão';};
   document.head.appendChild(s);
-  setTimeout(function(){try{document.head.removeChild(s);}catch(e){}},20000);
+  setTimeout(function(){try{document.head.removeChild(s);}catch(e){}},25000);
   if(ofeTimer)clearInterval(ofeTimer);
   ofeTimer=setInterval(function(){if($('page-ofensores').classList.contains('active'))fetchOfensores();},60000);
 }
 function renderOfensores(d){
   $('ofeDot').classList.remove('stale');
   $('ofeLive').textContent='atualizado '+(d.updated||'');
-  if(d.hub)$('ofeHub').textContent=d.hub+' · recusas e timeout de aceite';
+  var perLabel=(d.periodo==='semana')?'semana (seg–dom)':'hoje';
+  var trnLabel=(d.turno&&d.turno!=='todos')?(' · turno '+d.turno):'';
+  if(d.hub)$('ofeHub').textContent=d.hub+' · '+perLabel+trnLabel;
   // KPIs
   var taxa=d.totalNotif>0?(((d.recusas+d.timeouts+(d.reatribuidos||0))/d.totalNotif)*100).toFixed(1):0;
   $('ofeKpis').innerHTML=
